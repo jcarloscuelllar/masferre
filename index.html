@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mas Ferre - Picking & Remisión</title>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
+    
     <style>
         :root { --azul: #0056b3; --gris: #f4f7fa; --verde: #28a745; --rojo: #dc3545; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--gris); margin: 0; padding: 10px; }
@@ -14,7 +16,16 @@
         
         .btn-add { background: var(--verde); color: white; border: none; font-weight: bold; }
         .btn-ticket { background: var(--azul); color: white; border: none; font-weight: bold; }
+        .btn-scan { background: #34495e; color: white; border: none; font-weight: bold; margin-bottom: 5px; }
         
+        /* Contenedor Cámara */
+        #scanner-container { 
+            display: none; width: 100%; height: 250px; background: #000; border-radius: 12px; 
+            overflow: hidden; margin-top: 10px; position: relative; border: 3px solid var(--azul);
+        }
+        #scanner-container video { width: 100%; height: 100%; object-fit: cover; }
+        #scanner-container canvas { position: absolute; top: 0; left: 0; }
+
         .carrito { margin-top: 20px; border-top: 2px solid var(--azul); padding-top: 10px; }
         .item-carrito { 
             background: #fff; border: 1px solid #eee; padding: 10px; border-radius: 8px; margin-bottom: 8px;
@@ -26,7 +37,6 @@
         .cant-input { width: 60px !important; padding: 5px !important; margin: 0 !important; text-align: center; }
         .btn-del { background: none; border: none; color: var(--rojo); cursor: pointer; font-size: 1.2rem; width: auto; margin: 0; padding: 0 5px; }
         
-        /* Modal */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; }
         .modal-content { background: white; margin: 10% auto; padding: 20px; width: 85%; max-width: 400px; border-radius: 15px; text-align: center; }
         #barcode { max-width: 100%; margin: 15px 0; }
@@ -38,7 +48,10 @@
     <h2 style="text-align:center; color:var(--azul); margin-bottom:5px;">Picking Mas Ferre</h2>
     <p style="text-align:center; font-size:0.8rem; margin-bottom:15px; color:#666;">Verificación de Mercancía Física</p>
     
-    <input type="text" id="searchId" placeholder="ID Producto..." onkeypress="if(event.key==='Enter') buscar()">
+    <button class="btn-scan" onclick="toggleEscaneo()">📷 Escanear Código de Barras</button>
+    <div id="scanner-container"></div>
+
+    <input type="text" id="searchId" placeholder="ID o Código UPC..." onkeypress="if(event.key==='Enter') buscar()">
     <button class="btn-ticket" onclick="buscar()">🔍 Buscar Producto</button>
 
     <div id="infoProd"></div>
@@ -71,10 +84,52 @@
 <script>
     const URL_BASE = "https://mas-ferre-inventario-default-rtdb.firebaseio.com";
     let carrito = [];
+    let escaneando = false;
 
+    // --- LÓGICA DE ESCANEO ---
+    function toggleEscaneo() {
+        if (!escaneando) {
+            document.getElementById('scanner-container').style.display = 'block';
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: document.querySelector('#scanner-container'),
+                    constraints: { facingMode: "environment" }
+                },
+                decoder: {
+                    readers: ["ean_reader", "code_128_reader", "upc_reader", "upc_e_reader"]
+                }
+            }, (err) => {
+                if (err) { alert("Error cámara: " + err); return; }
+                Quagga.start();
+                escaneando = true;
+            });
+
+            Quagga.onDetected((data) => {
+                const codigo = data.codeResult.code;
+                document.getElementById('searchId').value = codigo;
+                new Audio('https://www.soundjay.com/button/beep-07.mp3').play();
+                detenerEscaneo();
+                buscar();
+            });
+        } else {
+            detenerEscaneo();
+        }
+    }
+
+    function detenerEscaneo() {
+        Quagga.stop();
+        document.getElementById('scanner-container').style.display = 'none';
+        escaneando = false;
+    }
+
+    // --- LÓGICA DE BUSQUEDA Y CARRITO ---
     async function buscar() {
         const id = document.getElementById('searchId').value.trim();
         if(!id) return;
+        
+        // Buscamos en Firebase (Nota: Aquí asumo que tus IDs en Firebase coinciden con los códigos que escaneas)
         const res = await fetch(`${URL_BASE}/inventario/${id}.json`);
         const item = await res.json();
         
@@ -88,97 +143,58 @@
                         <button class="btn-add" style="margin:0" onclick="agregar('${id}', '${item.nombre}')">Añadir</button>
                     </div>
                 </div>`;
-        } else { alert("ID no encontrado en Firebase"); }
+        } else { alert("Producto no encontrado con el código: " + id); }
     }
 
     function agregar(id, nombre) {
         const cantidad = document.getElementById('tempCant').value;
         const existe = carrito.find(p => p.id === id);
-        
-        if(existe) {
-            existe.cant = parseInt(existe.cant) + parseInt(cantidad);
-        } else {
-            carrito.push({id, nombre, cant: cantidad, verificado: false});
-        }
-        
+        if(existe) { existe.cant = parseInt(existe.cant) + parseInt(cantidad); } 
+        else { carrito.push({id, nombre, cant: cantidad, verificado: false}); }
         actualizarCarrito();
         document.getElementById('infoProd').innerHTML = "";
         document.getElementById('searchId').value = "";
     }
 
-    function editarCant(index, nuevaCant) {
-        carrito[index].cant = nuevaCant;
-        actualizarCarrito();
-    }
-
-    function toggleCheck(index) {
-        carrito[index].verificado = !carrito[index].verificado;
-    }
-
-    function eliminar(index) {
-        if(confirm("¿Quitar producto del listado?")) {
-            carrito.splice(index, 1);
-            actualizarCarrito();
-        }
-    }
-
     function actualizarCarrito() {
         const div = document.getElementById('listaItems');
         document.getElementById('contador').innerText = `${carrito.length} ítems`;
-        
         div.innerHTML = carrito.map((i, index) => `
             <div class="item-carrito">
-                <input type="checkbox" class="check-prod" ${i.verificado ? 'checked' : ''} onchange="toggleCheck(${index})">
-                <div class="info-txt">
-                    <b>${i.nombre}</b><br>
-                    <small>ID: ${i.id}</small>
-                </div>
+                <input type="checkbox" class="check-prod" ${i.verificado ? 'checked' : ''} onchange="carrito[${index}].verificado = !carrito[${index}].verificado">
+                <div class="info-txt"><b>${i.nombre}</b><br><small>ID: ${i.id}</small></div>
                 <div style="display:flex; align-items:center; gap:5px;">
-                    <input type="number" class="cant-input" value="${i.cant}" onchange="editarCant(${index}, this.value)">
+                    <input type="number" class="cant-input" value="${i.cant}" onchange="carrito[${index}].cant = this.value; actualizarCarrito();">
                     <button class="btn-del" onclick="eliminar(${index})">✕</button>
                 </div>
-            </div>
-        `).join('');
-
+            </div>`).join('');
         document.getElementById('seccionFinalizar').style.display = carrito.length > 0 ? 'block' : 'none';
+    }
+
+    function eliminar(index) {
+        if(confirm("¿Quitar producto?")) { carrito.splice(index, 1); actualizarCarrito(); }
     }
 
     function validarYGenerar() {
         const folio = document.getElementById('folioManual').value.trim();
-        const todosVerificados = carrito.every(i => i.verificado);
-
-        if(!folio) return alert("Por favor, introduce el Folio del sistema.");
-        if(!todosVerificados) return alert("Asegúrate de marcar con CHECK que tienes todos los productos físicamente.");
-
+        if(!folio) return alert("Introduce el Folio Legacy.");
+        if(!carrito.every(i => i.verificado)) return alert("Verifica todos los productos físicamente (Check).");
         abrirTicket(folio);
     }
 
     function abrirTicket(folio) {
         document.getElementById('modalTicket').style.display = 'block';
         document.getElementById('folioDisplay').innerText = "FOLIO: " + folio;
-
-        JsBarcode("#barcode", folio, {
-            format: "CODE128",
-            lineColor: "#000",
-            width: 2.5,
-            height: 100,
-            displayValue: true
-        });
+        JsBarcode("#barcode", folio, { format: "CODE128", width: 2.5, height: 100, displayValue: true });
     }
 
     function enviarWhatsApp() {
         const folio = document.getElementById('folioManual').value.trim();
-        let listaTexto = "";
-        
-        carrito.forEach(i => {
-            listaTexto += `- ${i.cant} x ${i.nombre} (ID:${i.id})%0A`;
-        });
-
-        const mensaje = `*MAS FERRE - PEDIDO LISTO*%0A%0A*FOLIO:* ${folio}%0A%0A*DETALLE:*%0A${listaTexto}%0A✅ _Mercancía verificada físicamente._%0A%0APresenta este mensaje en caja para tu cobro.`;
-        
+        let lista = "";
+        carrito.forEach(i => { lista += `- ${i.cant} x ${i.nombre} (ID:${i.id})%0A`; });
+        const mensaje = `*MAS FERRE - PEDIDO LISTO*%0A%0A*FOLIO:* ${folio}%0A%0A*DETALLE:*%0A${lista}%0A✅ _Verificado físicamente._`;
         window.open(`https://wa.me/?text=${mensaje}`);
     }
 </script>
-
 </body>
 </html>
