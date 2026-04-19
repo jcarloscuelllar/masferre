@@ -6,65 +6,95 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mas Ferre - Sistema Integral</title>
+    <title>Mas Ferre - Logística Real-Time</title>
+    
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     
     <style>
-        :root { --azul: #0056b3; --gris: #f4f7fa; --verde: #28a745; --naranja: #f39c12; --rojo: #dc3545; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--gris); margin: 0; padding: 0; }
+        :root { 
+            --azul: #0056b3; 
+            --gris: #f4f7fa; 
+            --verde: #28a745; 
+            --naranja: #f39c12; 
+            --rojo: #dc3545; 
+            --celeste: #00a8e8; 
+        }
+        
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--gris); margin: 0; padding: 0; }
+        
+        /* LOGIN */
         #login-screen { display: flex; align-items: center; justify-content: center; height: 100vh; padding: 20px; box-sizing: border-box; }
         .login-card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
-        #app-screen { display: none; padding: 15px; }
-        .header { background: var(--azul); color: white; padding: 15px; text-align: center; border-radius: 0 0 15px 15px; margin-bottom: 20px; }
-        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 15px; }
-        input, select, button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; }
+        
+        /* APP STRUCTURE */
+        #app-screen { display: none; padding: 15px; padding-top: 0; }
+        .header { background: var(--azul); color: white; padding: 20px 15px; text-align: center; border-radius: 0 0 20px 20px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        
+        input, select, button { width: 100%; padding: 14px; margin-top: 10px; border-radius: 10px; border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; transition: 0.3s; }
+        
         .btn-primary { background: var(--azul); color: white; border: none; font-weight: bold; cursor: pointer; }
         .btn-success { background: var(--verde); color: white; border: none; font-weight: bold; }
-        .orden-item { border-left: 5px solid var(--naranja); background: #fff9f0; padding: 12px; margin-bottom: 10px; border-radius: 5px; animation: slideIn 0.3s ease-out; }
-        @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        .logout-btn { background: none; border: 1px solid white; color: white; padding: 4px 8px; font-size: 10px; margin-top: 5px; cursor: pointer; border-radius: 5px; width: auto; }
+        .btn-warning { background: var(--naranja); color: white; border: none; }
+        
+        /* ORDENES */
+        .orden-item { border-left: 6px solid var(--naranja); background: #fff9f0; padding: 15px; margin-bottom: 15px; border-radius: 8px; position: relative; animation: slideIn 0.3s ease-out; }
+        .orden-item.en-proceso { border-left-color: var(--celeste); background: #f0faff; }
+        
+        .status-badge { font-size: 0.65rem; padding: 4px 8px; border-radius: 20px; color: white; float: right; font-weight: bold; text-transform: uppercase; }
+        .bg-pendiente { background: var(--naranja); }
+        .bg-proceso { background: var(--celeste); }
+        
+        .logout-btn { background: rgba(255,255,255,0.2); border: 1px solid white; color: white; padding: 6px 12px; font-size: 11px; margin-top: 10px; cursor: pointer; border-radius: 5px; width: auto; }
+        
+        @keyframes slideIn { from { transform: translateX(30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     </style>
 </head>
 <body>
 
 <div id="login-screen">
     <div class="login-card">
-        <h2 style="color:var(--azul)">Mas Ferre</h2>
-        <input type="text" id="user-name" placeholder="Tu nombre...">
+        <h2 style="color:var(--azul); margin-top:0;">Mas Ferre</h2>
+        <p style="color:#666; font-size:14px;">Inicia sesión para continuar</p>
+        <input type="text" id="user-name" placeholder="Escribe tu nombre...">
         <select id="user-role">
             <option value="asesor">Asesor</option>
             <option value="auxiliar">Auxiliar</option>
+            <option value="inventarista">Inventarista</option>
+            <option value="jefe">Jefe de Autoservicio</option>
+            <option value="gerente">Gerente</option>
         </select>
-        <button class="btn-primary" onclick="login()">Entrar al Sistema</button>
+        <button class="btn-primary" onclick="login()">ENTRAR AL SISTEMA</button>
     </div>
 </div>
 
 <div id="app-screen">
     <div class="header">
-        <h3 id="display-role" style="margin:0; text-transform: uppercase;"></h3>
-        <small id="display-user"></small><br>
+        <h3 id="display-role" style="margin:0; letter-spacing: 1px;">ROL</h3>
+        <small id="display-user" style="opacity:0.9;"></small><br>
         <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
     </div>
 
     <div id="view-asesor" style="display:none">
         <div class="card">
-            <h4>🔎 Reportar Hueco</h4>
-            <input type="text" id="searchId" placeholder="ID Producto..." onkeypress="if(event.key==='Enter') buscarParaAsesor()">
-            <button class="btn-primary" onclick="buscarParaAsesor()">🔍 Consultar Producto</button>
+            <h4 style="margin-top:0;">🔎 Reportar Hueco</h4>
+            <input type="text" id="searchId" placeholder="Escribe ID del Producto..." onkeypress="if(event.key==='Enter') buscarParaAsesor()">
+            <button class="btn-primary" onclick="buscarParaAsesor()">Consultar Producto</button>
             <div id="resultadoBusqueda"></div>
         </div>
     </div>
 
     <div id="view-auxiliar" style="display:none">
         <div class="card">
-            <h4>📦 Tareas en Tiempo Real</h4>
-            <div id="lista-ordenes">Conectando con el servidor...</div>
+            <h4 style="margin-top:0;">📦 Órdenes de Trabajo</h4>
+            <div id="lista-ordenes">Cargando tareas en tiempo real...</div>
         </div>
     </div>
 </div>
 
 <script>
+    // --- CONFIGURACIÓN ---
     const firebaseConfig = {
         databaseURL: "https://mas-ferre-inventario-default-rtdb.firebaseio.com"
     };
@@ -72,40 +102,44 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Persistencia de datos en la rama de órdenes
+    // Mantener sincronización aunque la app esté en segundo plano
     db.ref('ordenes_trabajo').keepSynced(true);
 
-    // Reconexión automática al volver a la App
+    // Forzar reconexión cuando el celular se desbloquea
     document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "visible") firebase.database().goOnline();
     });
 
-    window.onload = () => {
-        const guardadoUser = localStorage.getItem('mf_user');
-        const guardadoRole = localStorage.getItem('mf_role');
-        if(guardadoUser && guardadoRole) iniciarApp(guardadoUser, guardadoRole);
-    };
+    // --- SESIÓN ---
+    function verificarSesion() {
+        const u = localStorage.getItem('mf_user');
+        const r = localStorage.getItem('mf_role');
+        if (u && r) {
+            iniciarApp(u, r);
+        }
+    }
 
     function login() {
         const user = document.getElementById('user-name').value.trim();
         const role = document.getElementById('user-role').value;
-        if(!user) return alert("Escribe tu nombre");
+        if(!user) return alert("Por favor escribe tu nombre");
+        
         localStorage.setItem('mf_user', user);
         localStorage.setItem('mf_role', role);
         iniciarApp(user, role);
     }
 
     function iniciarApp(user, role) {
-        if(role === 'auxiliar') Notification.requestPermission();
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('app-screen').style.display = 'block';
-        document.getElementById('display-user').innerText = "Usuario: " + user;
-        document.getElementById('display-role').innerText = role;
+        document.getElementById('display-user').innerText = "Bienvenido: " + user;
+        document.getElementById('display-role').innerText = role.toUpperCase();
 
         if(role === 'asesor') {
             document.getElementById('view-asesor').style.display = 'block';
         } else {
             document.getElementById('view-auxiliar').style.display = 'block';
+            if (Notification.permission !== "granted") Notification.requestPermission();
             iniciarEscuchaRealTime(); 
         }
     }
@@ -115,24 +149,25 @@
         location.reload();
     }
 
-    // --- LÓGICA ASESOR (CORREGIDA) ---
+    // --- LÓGICA ASESOR ---
     function buscarParaAsesor() {
         const id = document.getElementById('searchId').value.trim();
         const resDiv = document.getElementById('resultadoBusqueda');
         if(!id) return;
 
-        resDiv.innerHTML = "<p style='color:gray; text-align:center;'>Buscando en inventario...</p>";
+        resDiv.innerHTML = "<p style='text-align:center; color:#888;'>Buscando...</p>";
 
         db.ref('inventario/' + id).once('value', (snapshot) => {
             const item = snapshot.val();
             if(item) {
                 resDiv.innerHTML = `
-                    <div class="card" style="border:2px solid var(--azul); margin-top:10px; background:#f0f7ff;">
-                        <b style="font-size:1.1rem;">${item.nombre}</b><br>
+                    <div class="card" style="border:2px solid var(--azul); margin-top:15px; background:#f0f7ff;">
+                        <b style="font-size:18px;">${item.nombre}</b><br>
+                        <small>ID: ${id}</small>
                         <button class="btn-success" onclick="enviarOrden('${id}', '${item.nombre}')">🚩 REPORTAR HUECO</button>
                     </div>`;
             } else { 
-                resDiv.innerHTML = `<p style="color:var(--rojo); text-align:center; margin-top:10px;">⚠️ ID no encontrado</p>`;
+                resDiv.innerHTML = `<p style="color:var(--rojo); text-align:center; font-weight:bold; margin-top:10px;">⚠️ Producto no encontrado</p>`;
             }
         });
     }
@@ -145,43 +180,74 @@
             timestamp: firebase.database.ServerValue.TIMESTAMP,
             estado: "Pendiente"
         });
-        alert("Orden enviada al auxiliar");
+        alert("Orden enviada al equipo de auxiliares.");
         document.getElementById('resultadoBusqueda').innerHTML = "";
         document.getElementById('searchId').value = "";
     }
 
-    // --- LÓGICA AUXILIAR ---
+    // --- LÓGICA AUXILIAR (Real-Time con 3 Estados) ---
     function iniciarEscuchaRealTime() {
         db.ref('ordenes_trabajo').on('value', (snapshot) => {
             const data = snapshot.val();
             const container = document.getElementById('lista-ordenes');
             
             if(!data) {
-                container.innerHTML = "No hay tareas pendientes.";
-                window.ultimoCount = 0;
+                container.innerHTML = "<p style='text-align:center; color:#888;'>No hay tareas pendientes.</p>";
+                window.lastCount = 0;
                 return;
             }
 
-            const pendientes = Object.keys(data)
+            const listaCompleta = Object.keys(data)
                 .map(key => ({key, ...data[key]}))
-                .filter(o => o.estado === "Pendiente");
+                .filter(o => o.estado !== "Completado");
 
-            if(window.ultimoCount !== undefined && pendientes.length > window.ultimoCount) {
+            // Notificación si hay nuevas tareas pendientes
+            const pendientes = listaCompleta.filter(o => o.estado === "Pendiente");
+            if(window.lastCount !== undefined && pendientes.length > window.lastCount) {
                 lanzarAlerta();
             }
-            window.ultimoCount = pendientes.length;
+            window.lastCount = pendientes.length;
 
-            if(pendientes.length === 0) {
-                container.innerHTML = "Todo surtido. ¡Buen trabajo!";
-            } else {
-                container.innerHTML = pendientes.map(o => `
-                    <div class="orden-item">
-                        <b>${o.producto}</b><br>
-                        <small>ID: ${o.id_prod} | Por: ${o.reportado_por}</small><br>
-                        <button class="btn-primary" style="margin-top:8px; padding:8px" onclick="finalizar('${o.key}')">✔ Marcar como surtido</button>
-                    </div>
-                `).join('');
+            if(listaCompleta.length === 0) {
+                container.innerHTML = "<p style='text-align:center; color:var(--verde);'>✅ ¡Todo el inventario está surtido!</p>";
+                return;
             }
+
+            container.innerHTML = listaCompleta.map(o => {
+                const esMia = o.tomada_por === localStorage.getItem('mf_user');
+                const enProceso = o.estado === "En Proceso";
+
+                return `
+                <div class="orden-item ${enProceso ? 'en-proceso' : ''}">
+                    <span class="status-badge ${enProceso ? 'bg-proceso' : 'bg-pendiente'}">${o.estado}</span>
+                    <b style="font-size:16px;">${o.producto}</b><br>
+                    <small>ID: ${o.id_prod} | Por: ${o.reportado_por}</small>
+                    
+                    <div style="margin-top:10px;">
+                    ${!enProceso ? 
+                        `<button class="btn-primary" onclick="tomarTarea('${o.key}')">🚀 Tomar Tarea</button>` : 
+                        (esMia ? 
+                            `<button class="btn-success" onclick="finalizarTarea('${o.key}')">✔ Finalizar Resurtido</button>` : 
+                            `<p style="color:var(--celeste); font-weight:bold; font-size:13px; margin:5px 0;">⏳ Surtida por: ${o.tomada_por}</p>`)
+                    }
+                    </div>
+                </div>`;
+            }).join('');
+        });
+    }
+
+    function tomarTarea(key) {
+        db.ref('ordenes_trabajo/' + key).update({
+            estado: "En Proceso",
+            tomada_por: localStorage.getItem('mf_user')
+        });
+    }
+
+    function finalizarTarea(key) {
+        db.ref('ordenes_trabajo/' + key).update({
+            estado: "Completado",
+            finalizado_por: localStorage.getItem('mf_user'),
+            hora_termino: firebase.database.ServerValue.TIMESTAMP
         });
     }
 
@@ -189,16 +255,14 @@
         const audio = new Audio('https://www.soundjay.com/button/beep-09.mp3');
         audio.play().catch(() => {});
         if (Notification.permission === "granted") {
-            new Notification("Mas Ferre", { body: "Nueva tarea de resurtido recibida." });
+            new Notification("Mas Ferre", { body: "¡Nueva orden de trabajo recibida!" });
         }
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
     }
 
-    function finalizar(key) {
-        db.ref('ordenes_trabajo/' + key).update({
-            estado: "Completado",
-            finalizado_por: localStorage.getItem('mf_user')
-        });
-    }
+    // ARRANQUE INMEDIATO
+    verificarSesion();
 </script>
+
 </body>
 </html>
