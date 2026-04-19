@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mas Ferre - Picking & Remisión</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <style>
+        :root { --azul: #0056b3; --gris: #f4f7fa; --verde: #28a745; --rojo: #dc3545; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--gris); margin: 0; padding: 10px; }
+        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 480px; margin: auto; }
+        
+        input, select, button { width: 100%; padding: 12px; margin-top: 8px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; }
+        
+        .btn-add { background: var(--verde); color: white; border: none; font-weight: bold; }
+        .btn-ticket { background: var(--azul); color: white; border: none; font-weight: bold; }
+        
+        .carrito { margin-top: 20px; border-top: 2px solid var(--azul); padding-top: 10px; }
+        .item-carrito { 
+            background: #fff; border: 1px solid #eee; padding: 10px; border-radius: 8px; margin-bottom: 8px;
+            display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 10px;
+        }
+
+        .check-prod { width: 20px; height: 20px; cursor: pointer; }
+        .info-txt { font-size: 0.9rem; line-height: 1.2; }
+        .cant-input { width: 60px !important; padding: 5px !important; margin: 0 !important; text-align: center; }
+        .btn-del { background: none; border: none; color: var(--rojo); cursor: pointer; font-size: 1.2rem; width: auto; margin: 0; padding: 0 5px; }
+        
+        /* Modal */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; }
+        .modal-content { background: white; margin: 10% auto; padding: 20px; width: 85%; max-width: 400px; border-radius: 15px; text-align: center; }
+        #barcode { max-width: 100%; margin: 15px 0; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2 style="text-align:center; color:var(--azul); margin-bottom:5px;">Picking Mas Ferre</h2>
+    <p style="text-align:center; font-size:0.8rem; margin-bottom:15px; color:#666;">Verificación de Mercancía Física</p>
+    
+    <input type="text" id="searchId" placeholder="ID Producto..." onkeypress="if(event.key==='Enter') buscar()">
+    <button class="btn-ticket" onclick="buscar()">🔍 Buscar Producto</button>
+
+    <div id="infoProd"></div>
+
+    <div class="carrito">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <b>Listado de Remisión:</b>
+            <span id="contador" style="font-size:0.8rem; background:#eee; padding:2px 8px; border-radius:10px;">0 ítems</span>
+        </div>
+        <div id="listaItems" style="margin-top:10px;"></div>
+        
+        <div id="seccionFinalizar" style="display:none; margin-top:15px; border-top: 1px dashed #ccc; padding-top:10px;">
+            <label style="font-size:0.8rem; font-weight:bold;">Folio Sistema Legacy:</label>
+            <input type="text" id="folioManual" placeholder="Introduce el Folio (Ej: A-5502)" style="border: 2px solid var(--azul);">
+            <button class="btn-ticket" onclick="validarYGenerar()">🎫 Generar Ticket y WhatsApp</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalTicket" class="modal">
+    <div class="modal-content">
+        <h3 id="folioDisplay" style="margin-bottom:0;"></h3>
+        <p style="font-size:0.8rem; color:#666;">Presentar en caja para cobrar</p>
+        <svg id="barcode"></svg>
+        <button class="btn-add" onclick="enviarWhatsApp()">📲 Compartir Pedido por WhatsApp</button>
+        <button onclick="location.reload()" style="background:#666; color:white;">Nueva Remisión</button>
+    </div>
+</div>
+
+<script>
+    const URL_BASE = "https://mas-ferre-inventario-default-rtdb.firebaseio.com";
+    let carrito = [];
+
+    async function buscar() {
+        const id = document.getElementById('searchId').value.trim();
+        if(!id) return;
+        const res = await fetch(`${URL_BASE}/inventario/${id}.json`);
+        const item = await res.json();
+        
+        if(item) {
+            document.getElementById('infoProd').innerHTML = `
+                <div style="padding:15px; background:#e9f2ff; border-radius:8px; margin-top:10px; border:1px solid #b3d4ff;">
+                    <b>${item.nombre}</b><br>
+                    <div style="margin-top:8px; display:flex; align-items:center; gap:10px;">
+                        <span>Cant:</span>
+                        <input type="number" id="tempCant" value="1" min="1" class="cant-input" style="width:80px !important;">
+                        <button class="btn-add" style="margin:0" onclick="agregar('${id}', '${item.nombre}')">Añadir</button>
+                    </div>
+                </div>`;
+        } else { alert("ID no encontrado en Firebase"); }
+    }
+
+    function agregar(id, nombre) {
+        const cantidad = document.getElementById('tempCant').value;
+        const existe = carrito.find(p => p.id === id);
+        
+        if(existe) {
+            existe.cant = parseInt(existe.cant) + parseInt(cantidad);
+        } else {
+            carrito.push({id, nombre, cant: cantidad, verificado: false});
+        }
+        
+        actualizarCarrito();
+        document.getElementById('infoProd').innerHTML = "";
+        document.getElementById('searchId').value = "";
+    }
+
+    function editarCant(index, nuevaCant) {
+        carrito[index].cant = nuevaCant;
+        actualizarCarrito();
+    }
+
+    function toggleCheck(index) {
+        carrito[index].verificado = !carrito[index].verificado;
+    }
+
+    function eliminar(index) {
+        if(confirm("¿Quitar producto del listado?")) {
+            carrito.splice(index, 1);
+            actualizarCarrito();
+        }
+    }
+
+    function actualizarCarrito() {
+        const div = document.getElementById('listaItems');
+        document.getElementById('contador').innerText = `${carrito.length} ítems`;
+        
+        div.innerHTML = carrito.map((i, index) => `
+            <div class="item-carrito">
+                <input type="checkbox" class="check-prod" ${i.verificado ? 'checked' : ''} onchange="toggleCheck(${index})">
+                <div class="info-txt">
+                    <b>${i.nombre}</b><br>
+                    <small>ID: ${i.id}</small>
+                </div>
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <input type="number" class="cant-input" value="${i.cant}" onchange="editarCant(${index}, this.value)">
+                    <button class="btn-del" onclick="eliminar(${index})">✕</button>
+                </div>
+            </div>
+        `).join('');
+
+        document.getElementById('seccionFinalizar').style.display = carrito.length > 0 ? 'block' : 'none';
+    }
+
+    function validarYGenerar() {
+        const folio = document.getElementById('folioManual').value.trim();
+        const todosVerificados = carrito.every(i => i.verificado);
+
+        if(!folio) return alert("Por favor, introduce el Folio del sistema.");
+        if(!todosVerificados) return alert("Asegúrate de marcar con CHECK que tienes todos los productos físicamente.");
+
+        abrirTicket(folio);
+    }
+
+    function abrirTicket(folio) {
+        document.getElementById('modalTicket').style.display = 'block';
+        document.getElementById('folioDisplay').innerText = "FOLIO: " + folio;
+
+        JsBarcode("#barcode", folio, {
+            format: "CODE128",
+            lineColor: "#000",
+            width: 2.5,
+            height: 100,
+            displayValue: true
+        });
+    }
+
+    function enviarWhatsApp() {
+        const folio = document.getElementById('folioManual').value.trim();
+        let listaTexto = "";
+        
+        carrito.forEach(i => {
+            listaTexto += `- ${i.cant} x ${i.nombre} (ID:${i.id})%0A`;
+        });
+
+        const mensaje = `*MAS FERRE - PEDIDO LISTO*%0A%0A*FOLIO:* ${folio}%0A%0A*DETALLE:*%0A${listaTexto}%0A✅ _Mercancía verificada físicamente._%0A%0APresenta este mensaje en caja para tu cobro.`;
+        
+        window.open(`https://wa.me/?text=${mensaje}`);
+    }
+</script>
+
+</body>
+</html>
