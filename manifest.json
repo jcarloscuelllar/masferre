@@ -1,0 +1,16 @@
+{
+  "short_name": "Mas Ferre",
+  "name": "Mas Ferre Sistema Integral",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/583/583321.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#f4f7fa",
+  "display": "standalone",
+  "scope": "./",
+  "theme_color": "#0056b3"
+}
