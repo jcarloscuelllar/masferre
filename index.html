@@ -20,15 +20,29 @@
             --rojo: #dc3545; 
             --celeste: #00a8e8; 
         }
-        
+
+        /* EVITAR PARPADEO: Todo oculto por defecto */
+        #login-screen, #app-screen { display: none; }
+
+        /* PANTALLA DE CARGA ESTILO APP */
+        #loading-screen { 
+            display: flex; 
+            flex-direction: column;
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh; 
+            background: white;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--gris); margin: 0; padding: 0; }
         
         /* LOGIN */
-        #login-screen { display: flex; align-items: center; justify-content: center; height: 100vh; padding: 20px; box-sizing: border-box; }
+        #login-screen { display: none; align-items: center; justify-content: center; height: 100vh; padding: 20px; box-sizing: border-box; }
         .login-card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
         
         /* APP STRUCTURE */
-        #app-screen { display: none; padding: 15px; padding-top: 0; }
+        #app-screen { padding: 15px; padding-top: 0; }
         .header { background: var(--azul); color: white; padding: 20px 15px; text-align: center; border-radius: 0 0 20px 20px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 15px; }
         
@@ -36,10 +50,9 @@
         
         .btn-primary { background: var(--azul); color: white; border: none; font-weight: bold; cursor: pointer; }
         .btn-success { background: var(--verde); color: white; border: none; font-weight: bold; }
-        .btn-warning { background: var(--naranja); color: white; border: none; }
         
         /* ORDENES */
-        .orden-item { border-left: 6px solid var(--naranja); background: #fff9f0; padding: 15px; margin-bottom: 15px; border-radius: 8px; position: relative; animation: slideIn 0.3s ease-out; }
+        .orden-item { border-left: 6px solid var(--naranja); background: #fff9f0; padding: 15px; margin-bottom: 15px; border-radius: 8px; animation: slideIn 0.3s ease-out; }
         .orden-item.en-proceso { border-left-color: var(--celeste); background: #f0faff; }
         
         .status-badge { font-size: 0.65rem; padding: 4px 8px; border-radius: 20px; color: white; float: right; font-weight: bold; text-transform: uppercase; }
@@ -53,11 +66,16 @@
 </head>
 <body>
 
+<div id="loading-screen">
+    <h2 style="color:var(--azul)">Mas Ferre</h2>
+    <p style="color:#888">Verificando sesión...</p>
+</div>
+
 <div id="login-screen">
     <div class="login-card">
         <h2 style="color:var(--azul); margin-top:0;">Mas Ferre</h2>
-        <p style="color:#666; font-size:14px;">Inicia sesión para continuar</p>
-        <input type="text" id="user-name" placeholder="Escribe tu nombre...">
+        <p style="color:#666; font-size:14px;">Identifícate para entrar</p>
+        <input type="text" id="user-name" placeholder="Tu nombre...">
         <select id="user-role">
             <option value="asesor">Asesor</option>
             <option value="auxiliar">Auxiliar</option>
@@ -79,7 +97,7 @@
     <div id="view-asesor" style="display:none">
         <div class="card">
             <h4 style="margin-top:0;">🔎 Reportar Hueco</h4>
-            <input type="text" id="searchId" placeholder="Escribe ID del Producto..." onkeypress="if(event.key==='Enter') buscarParaAsesor()">
+            <input type="text" id="searchId" placeholder="ID del Producto..." onkeypress="if(event.key==='Enter') buscarParaAsesor()">
             <button class="btn-primary" onclick="buscarParaAsesor()">Consultar Producto</button>
             <div id="resultadoBusqueda"></div>
         </div>
@@ -88,41 +106,39 @@
     <div id="view-auxiliar" style="display:none">
         <div class="card">
             <h4 style="margin-top:0;">📦 Órdenes de Trabajo</h4>
-            <div id="lista-ordenes">Cargando tareas en tiempo real...</div>
+            <div id="lista-ordenes">Sincronizando tareas...</div>
         </div>
     </div>
 </div>
 
 <script>
-    // --- CONFIGURACIÓN ---
-    const firebaseConfig = {
-        databaseURL: "https://mas-ferre-inventario-default-rtdb.firebaseio.com"
-    };
-    
+    // --- 1. CONFIGURACIÓN FIREBASE ---
+    const firebaseConfig = { databaseURL: "https://mas-ferre-inventario-default-rtdb.firebaseio.com" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-
-    // Mantener sincronización aunque la app esté en segundo plano
     db.ref('ordenes_trabajo').keepSynced(true);
 
-    // Forzar reconexión cuando el celular se desbloquea
-    document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "visible") firebase.database().goOnline();
-    });
-
-    // --- SESIÓN ---
+    // --- 2. LÓGICA DE SESIÓN TIPO APP (Infalible) ---
     function verificarSesion() {
         const u = localStorage.getItem('mf_user');
         const r = localStorage.getItem('mf_role');
-        if (u && r) {
-            iniciarApp(u, r);
-        }
+        const loader = document.getElementById('loading-screen');
+        
+        // Pequeño retraso para asegurar que el DOM cargó
+        setTimeout(() => {
+            loader.style.display = 'none';
+            if (u && r) {
+                iniciarApp(u, r);
+            } else {
+                document.getElementById('login-screen').style.display = 'flex';
+            }
+        }, 300); 
     }
 
     function login() {
         const user = document.getElementById('user-name').value.trim();
         const role = document.getElementById('user-role').value;
-        if(!user) return alert("Por favor escribe tu nombre");
+        if(!user) return alert("Escribe tu nombre");
         
         localStorage.setItem('mf_user', user);
         localStorage.setItem('mf_role', role);
@@ -149,120 +165,80 @@
         location.reload();
     }
 
-    // --- LÓGICA ASESOR ---
+    // --- 3. LÓGICA ASESOR ---
     function buscarParaAsesor() {
         const id = document.getElementById('searchId').value.trim();
         const resDiv = document.getElementById('resultadoBusqueda');
         if(!id) return;
-
-        resDiv.innerHTML = "<p style='text-align:center; color:#888;'>Buscando...</p>";
-
-        db.ref('inventario/' + id).once('value', (snapshot) => {
-            const item = snapshot.val();
+        resDiv.innerHTML = "<p style='text-align:center;'>Buscando...</p>";
+        db.ref('inventario/' + id).once('value', (s) => {
+            const item = s.val();
             if(item) {
-                resDiv.innerHTML = `
-                    <div class="card" style="border:2px solid var(--azul); margin-top:15px; background:#f0f7ff;">
-                        <b style="font-size:18px;">${item.nombre}</b><br>
-                        <small>ID: ${id}</small>
-                        <button class="btn-success" onclick="enviarOrden('${id}', '${item.nombre}')">🚩 REPORTAR HUECO</button>
-                    </div>`;
-            } else { 
-                resDiv.innerHTML = `<p style="color:var(--rojo); text-align:center; font-weight:bold; margin-top:10px;">⚠️ Producto no encontrado</p>`;
-            }
+                resDiv.innerHTML = `<div class="card" style="border:2px solid var(--azul); margin-top:15px;">
+                    <b>${item.nombre}</b><br><button class="btn-success" onclick="enviarOrden('${id}', '${item.nombre}')">🚩 REPORTAR HUECO</button>
+                </div>`;
+            } else { resDiv.innerHTML = "<p style='color:var(--rojo); text-align:center;'>No encontrado</p>"; }
         });
     }
 
     function enviarOrden(id, nombre) {
         db.ref('ordenes_trabajo').push({
-            id_prod: id,
-            producto: nombre,
-            reportado_por: localStorage.getItem('mf_user'),
-            timestamp: firebase.database.ServerValue.TIMESTAMP,
-            estado: "Pendiente"
+            id_prod: id, producto: nombre, reportado_por: localStorage.getItem('mf_user'),
+            estado: "Pendiente", timestamp: firebase.database.ServerValue.TIMESTAMP
         });
-        alert("Orden enviada al equipo de auxiliares.");
+        alert("Enviado");
         document.getElementById('resultadoBusqueda').innerHTML = "";
         document.getElementById('searchId').value = "";
     }
 
-    // --- LÓGICA AUXILIAR (Real-Time con 3 Estados) ---
+    // --- 4. LÓGICA AUXILIAR ---
     function iniciarEscuchaRealTime() {
         db.ref('ordenes_trabajo').on('value', (snapshot) => {
             const data = snapshot.val();
             const container = document.getElementById('lista-ordenes');
+            if(!data) { container.innerHTML = "Sin pendientes."; return; }
+
+            const lista = Object.keys(data).map(k => ({k, ...data[k]})).filter(o => o.estado !== "Completado");
             
-            if(!data) {
-                container.innerHTML = "<p style='text-align:center; color:#888;'>No hay tareas pendientes.</p>";
-                window.lastCount = 0;
-                return;
-            }
+            const pendientes = lista.filter(o => o.estado === "Pendiente");
+            if(window.lastC !== undefined && pendientes.length > window.lastC) lanzarAlerta();
+            window.lastC = pendientes.length;
 
-            const listaCompleta = Object.keys(data)
-                .map(key => ({key, ...data[key]}))
-                .filter(o => o.estado !== "Completado");
+            if(lista.length === 0) { container.innerHTML = "Todo surtido."; return; }
 
-            // Notificación si hay nuevas tareas pendientes
-            const pendientes = listaCompleta.filter(o => o.estado === "Pendiente");
-            if(window.lastCount !== undefined && pendientes.length > window.lastCount) {
-                lanzarAlerta();
-            }
-            window.lastCount = pendientes.length;
-
-            if(listaCompleta.length === 0) {
-                container.innerHTML = "<p style='text-align:center; color:var(--verde);'>✅ ¡Todo el inventario está surtido!</p>";
-                return;
-            }
-
-            container.innerHTML = listaCompleta.map(o => {
+            container.innerHTML = lista.map(o => {
                 const esMia = o.tomada_por === localStorage.getItem('mf_user');
-                const enProceso = o.estado === "En Proceso";
-
+                const proc = o.estado === "En Proceso";
                 return `
-                <div class="orden-item ${enProceso ? 'en-proceso' : ''}">
-                    <span class="status-badge ${enProceso ? 'bg-proceso' : 'bg-pendiente'}">${o.estado}</span>
-                    <b style="font-size:16px;">${o.producto}</b><br>
-                    <small>ID: ${o.id_prod} | Por: ${o.reportado_por}</small>
-                    
+                <div class="orden-item ${proc ? 'en-proceso' : ''}">
+                    <span class="status-badge ${proc ? 'bg-proceso' : 'bg-pendiente'}">${o.estado}</span>
+                    <b>${o.producto}</b><br><small>ID: ${o.id_prod} | Por: ${o.reportado_por}</small>
                     <div style="margin-top:10px;">
-                    ${!enProceso ? 
-                        `<button class="btn-primary" onclick="tomarTarea('${o.key}')">🚀 Tomar Tarea</button>` : 
-                        (esMia ? 
-                            `<button class="btn-success" onclick="finalizarTarea('${o.key}')">✔ Finalizar Resurtido</button>` : 
-                            `<p style="color:var(--celeste); font-weight:bold; font-size:13px; margin:5px 0;">⏳ Surtida por: ${o.tomada_por}</p>`)
-                    }
+                    ${!proc ? `<button class="btn-primary" onclick="tomarTarea('${o.k}')">🚀 Tomar Tarea</button>` : 
+                      (esMia ? `<button class="btn-success" onclick="finalizarTarea('${o.k}')">✔ Finalizar</button>` : 
+                      `<p style="color:var(--celeste); font-size:13px;">⏳ Surtida por: ${o.tomada_por}</p>`)}
                     </div>
                 </div>`;
             }).join('');
         });
     }
 
-    function tomarTarea(key) {
-        db.ref('ordenes_trabajo/' + key).update({
-            estado: "En Proceso",
-            tomada_por: localStorage.getItem('mf_user')
-        });
+    function tomarTarea(k) {
+        db.ref('ordenes_trabajo/' + k).update({ estado: "En Proceso", tomada_por: localStorage.getItem('mf_user') });
     }
 
-    function finalizarTarea(key) {
-        db.ref('ordenes_trabajo/' + key).update({
-            estado: "Completado",
-            finalizado_por: localStorage.getItem('mf_user'),
-            hora_termino: firebase.database.ServerValue.TIMESTAMP
-        });
+    function finalizarTarea(k) {
+        db.ref('ordenes_trabajo/' + k).update({ estado: "Completado", finalizado_por: localStorage.getItem('mf_user') });
     }
 
     function lanzarAlerta() {
-        const audio = new Audio('https://www.soundjay.com/button/beep-09.mp3');
-        audio.play().catch(() => {});
-        if (Notification.permission === "granted") {
-            new Notification("Mas Ferre", { body: "¡Nueva orden de trabajo recibida!" });
-        }
-        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+        new Audio('https://www.soundjay.com/button/beep-09.mp3').play().catch(()=>{});
+        if (Notification.permission === "granted") new Notification("Mas Ferre", { body: "Nueva tarea recibida" });
+        if (navigator.vibrate) navigator.vibrate(200);
     }
 
-    // ARRANQUE INMEDIATO
+    // ARRANQUE
     verificarSesion();
 </script>
-
 </body>
 </html>
