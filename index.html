@@ -66,138 +66,136 @@
 </div>
 
 <script>
-    const firebaseConfig = {
-        databaseURL: "https://mas-ferre-inventario-default-rtdb.firebaseio.com"
-    };
+    // --- CONFIGURACIÓN Y PERSISTENCIA ---
+const firebaseConfig = {
+    databaseURL: "https://mas-ferre-inventario-default-rtdb.firebaseio.com"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// TRUCO 1: Forzar a la base de datos a estar activa
+// Esto le dice a Firebase que mantenga los datos en memoria local
+db.ref('ordenes_trabajo').keepSynced(true);
+
+// TRUCO 2: Detectar cuando el usuario vuelve a la pestaña
+// Si el auxiliar bloqueó el cel y lo desbloqueó, esto fuerza la actualización
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+        console.log("App visible: Reconectando...");
+        firebase.database().goOnline(); // Fuerza la reconexión de red
+    }
+});
+
+window.onload = () => {
+    const guardadoUser = localStorage.getItem('mf_user');
+    const guardadoRole = localStorage.getItem('mf_role');
+    if(guardadoUser && guardadoRole) {
+        iniciarApp(guardadoUser, guardadoRole);
+    }
+};
+
+function login() {
+    const user = document.getElementById('user-name').value;
+    const role = document.getElementById('user-role').value;
+    if(!user) return alert("Escribe tu nombre");
+    localStorage.setItem('mf_user', user);
+    localStorage.setItem('mf_role', role);
+    iniciarApp(user, role);
+}
+
+function iniciarApp(user, role) {
+    if(role === 'auxiliar') Notification.requestPermission();
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display = 'block';
+    document.getElementById('display-user').innerText = "Usuario: " + user;
+    document.getElementById('display-role').innerText = role;
+
+    if(role === 'asesor') {
+        document.getElementById('view-asesor').style.display = 'block';
+    } else {
+        document.getElementById('view-auxiliar').style.display = 'block';
+        iniciarEscuchaRealTime(); 
+    }
+}
+
+// --- LÓGICA DE ESCUCHA (MODIFICADA) ---
+function iniciarEscuchaRealTime() {
+    const container = document.getElementById('lista-ordenes');
     
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    // AUTO-LOGIN: Revisar si ya había una sesión guardada
-    window.onload = () => {
-        const guardadoUser = localStorage.getItem('mf_user');
-        const guardadoRole = localStorage.getItem('mf_role');
-        if(guardadoUser && guardadoRole) {
-            iniciarApp(guardadoUser, guardadoRole);
-        }
-    };
-
-    function login() {
-        const user = document.getElementById('user-name').value;
-        const role = document.getElementById('user-role').value;
-        if(!user) return alert("Escribe tu nombre");
-        
-        // Guardar en el teléfono
-        localStorage.setItem('mf_user', user);
-        localStorage.setItem('mf_role', role);
-        
-        iniciarApp(user, role);
-    }
-
-    function iniciarApp(user, role) {
-        if(role === 'auxiliar') Notification.requestPermission();
-
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('app-screen').style.display = 'block';
-        document.getElementById('display-user').innerText = "Usuario: " + user;
-        document.getElementById('display-role').innerText = role;
-
-        if(role === 'asesor') {
-            document.getElementById('view-asesor').style.display = 'block';
+    // TRUCO 3: Escuchar cambios en la conexión
+    const connectedRef = db.ref(".info/connected");
+    connectedRef.on("value", (snap) => {
+        if (snap.val() === true) {
+            console.log("Conectado a Firebase");
         } else {
-            document.getElementById('view-auxiliar').style.display = 'block';
-            iniciarEscuchaRealTime(); 
+            console.log("Desconectado... intentando reconectar");
         }
-    }
+    });
 
-    function logout() {
-        localStorage.clear();
-        location.reload();
-    }
-
-    // --- ASESOR ---
-    async function buscarParaAsesor() {
-        const id = document.getElementById('searchId').value.trim();
-        db.ref('inventario/' + id).once('value', (snapshot) => {
-            const item = snapshot.val();
-            if(item) {
-                document.getElementById('resultadoBusqueda').innerHTML = `
-                    <div class="card" style="border:1px solid #ddd; margin-top:10px;">
-                        <b>${item.nombre}</b><br>
-                        <button class="btn-success" onclick="enviarOrden('${id}', '${item.nombre}')">REPORTAR HUECO</button>
-                    </div>`;
-            } else { alert("No encontrado"); }
-        });
-    }
-
-    function enviarOrden(id, nombre) {
-        db.ref('ordenes_trabajo').push({
-            id_prod: id,
-            producto: nombre,
-            reportado_por: localStorage.getItem('mf_user'),
-            timestamp: firebase.database.ServerValue.TIMESTAMP,
-            estado: "Pendiente"
-        });
-        alert("¡Enviado!");
-        document.getElementById('resultadoBusqueda').innerHTML = "";
-    }
-
-    // --- AUXILIAR (Escucha Real Time) ---
-    function iniciarEscuchaRealTime() {
-        // .on('value') mantiene la conexión abierta
-        db.ref('ordenes_trabajo').on('value', (snapshot) => {
-            const data = snapshot.val();
-            const container = document.getElementById('lista-ordenes');
-            
-            if(!data) {
-                container.innerHTML = "No hay tareas pendientes.";
-                return;
-            }
-
-            const pendientes = Object.keys(data)
-                .map(key => ({key, ...data[key]}))
-                .filter(o => o.estado === "Pendiente");
-
-            if(window.ultimoCount !== undefined && pendientes.length > window.ultimoCount) {
-                lanzarAlerta();
-            }
-            window.ultimoCount = pendientes.length;
-
-            if(pendientes.length === 0) {
-                container.innerHTML = "Todo surtido. ¡Buen trabajo!";
-            } else {
-                container.innerHTML = pendientes.map(o => `
-                    <div class="orden-item">
-                        <b>${o.producto}</b><br>
-                        <small>ID: ${o.id_prod} | Por: ${o.reportado_por}</small><br>
-                        <button class="btn-primary" style="margin-top:8px; padding:8px" onclick="finalizar('${o.key}')">Marcar como surtido</button>
-                    </div>
-                `).join('');
-            }
-        }, (error) => {
-            console.error("Error de conexión:", error);
-            container.innerHTML = "Error de conexión. Reconectando...";
-        });
-    }
-
-    function lanzarAlerta() {
-        const audio = new Audio('https://www.soundjay.com/button/beep-09.mp3');
-        audio.play().catch(e => console.log("Audio bloqueado por navegador"));
+    // Escucha principal
+    db.ref('ordenes_trabajo').on('value', (snapshot) => {
+        const data = snapshot.val();
         
-        if (Notification.permission === "granted") {
-            new Notification("¡Nueva Tarea en Mas Ferre!", { 
-                body: "Un asesor reportó un nuevo hueco.",
-                vibrate: [200, 100, 200]
-            });
+        // Si no hay datos, limpiar pantalla
+        if(!data) {
+            container.innerHTML = "No hay tareas pendientes.";
+            window.ultimoCount = 0;
+            return;
         }
-    }
 
-    function finalizar(key) {
-        db.ref('ordenes_trabajo/' + key).update({
-            estado: "Completado",
-            finalizado_por: localStorage.getItem('mf_user')
+        const pendientes = Object.keys(data)
+            .map(key => ({key, ...data[key]}))
+            .filter(o => o.estado === "Pendiente");
+
+        // Solo lanzar alerta si el número de pendientes creció
+        if(window.ultimoCount !== undefined && pendientes.length > window.ultimoCount) {
+            lanzarAlerta();
+        }
+        window.ultimoCount = pendientes.length;
+
+        if(pendientes.length === 0) {
+            container.innerHTML = "Todo surtido. ¡Buen trabajo!";
+        } else {
+            // Renderizar lista
+            container.innerHTML = pendientes.map(o => `
+                <div class="orden-item">
+                    <b>${o.producto}</b><br>
+                    <small>ID: ${o.id_prod} | Por: ${o.reportado_por}</small><br>
+                    <button class="btn-primary" style="margin-top:8px; padding:8px" onclick="finalizar('${o.key}')">Marcar como surtido</button>
+                </div>
+            `).join('');
+        }
+    });
+}
+
+function lanzarAlerta() {
+    // Intentar vibración si el dispositivo lo permite
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    
+    const audio = new Audio('https://www.soundjay.com/button/beep-09.mp3');
+    audio.play().catch(e => console.log("Audio bloqueado"));
+    
+    if (Notification.permission === "granted") {
+        new Notification("¡Nueva Tarea!", { 
+            body: "Hay productos por resurtir.",
+            tag: "resurtido-alerta" // Evita que se amontonen mil notificaciones
         });
     }
+}
+
+function finalizar(key) {
+    db.ref('ordenes_trabajo/' + key).update({
+        estado: "Completado",
+        finalizado_por: localStorage.getItem('mf_user')
+    });
+}
+
+function logout() {
+    localStorage.clear();
+    location.reload();
+}
+
 </script>
 </body>
 </html>
