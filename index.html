@@ -3,197 +3,166 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mas Ferre - Picking & Remisión</title>
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
+    <title>Mas Ferre - Real Time</title>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     
     <style>
-        :root { --azul: #0056b3; --gris: #f4f7fa; --verde: #28a745; --rojo: #dc3545; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--gris); margin: 0; padding: 10px; }
-        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 480px; margin: auto; }
-        
-        input, select, button { width: 100%; padding: 12px; margin-top: 8px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; }
-        
-        .btn-add { background: var(--verde); color: white; border: none; font-weight: bold; }
-        .btn-ticket { background: var(--azul); color: white; border: none; font-weight: bold; }
-        .btn-scan { background: #34495e; color: white; border: none; font-weight: bold; margin-bottom: 5px; }
-        
-        /* Contenedor Cámara */
-        #scanner-container { 
-            display: none; width: 100%; height: 250px; background: #000; border-radius: 12px; 
-            overflow: hidden; margin-top: 10px; position: relative; border: 3px solid var(--azul);
-        }
-        #scanner-container video { width: 100%; height: 100%; object-fit: cover; }
-        #scanner-container canvas { position: absolute; top: 0; left: 0; }
-
-        .carrito { margin-top: 20px; border-top: 2px solid var(--azul); padding-top: 10px; }
-        .item-carrito { 
-            background: #fff; border: 1px solid #eee; padding: 10px; border-radius: 8px; margin-bottom: 8px;
-            display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 10px;
-        }
-
-        .check-prod { width: 20px; height: 20px; cursor: pointer; }
-        .info-txt { font-size: 0.9rem; line-height: 1.2; }
-        .cant-input { width: 60px !important; padding: 5px !important; margin: 0 !important; text-align: center; }
-        .btn-del { background: none; border: none; color: var(--rojo); cursor: pointer; font-size: 1.2rem; width: auto; margin: 0; padding: 0 5px; }
-        
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; }
-        .modal-content { background: white; margin: 10% auto; padding: 20px; width: 85%; max-width: 400px; border-radius: 15px; text-align: center; }
-        #barcode { max-width: 100%; margin: 15px 0; }
+        :root { --azul: #0056b3; --gris: #f4f7fa; --verde: #28a745; --naranja: #f39c12; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--gris); margin: 0; padding: 0; }
+        #login-screen { display: flex; align-items: center; justify-content: center; height: 100vh; padding: 20px; box-sizing: border-box; }
+        .login-card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
+        #app-screen { display: none; padding: 15px; }
+        .header { background: var(--azul); color: white; padding: 15px; text-align: center; border-radius: 0 0 15px 15px; margin-bottom: 20px; }
+        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        input, select, button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; }
+        .btn-primary { background: var(--azul); color: white; border: none; font-weight: bold; cursor: pointer; }
+        .btn-success { background: var(--verde); color: white; border: none; font-weight: bold; }
+        .orden-item { border-left: 5px solid var(--naranja); background: #fff9f0; padding: 12px; margin-bottom: 10px; border-radius: 5px; animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h2 style="text-align:center; color:var(--azul); margin-bottom:5px;">Picking Mas Ferre</h2>
-    <p style="text-align:center; font-size:0.8rem; margin-bottom:15px; color:#666;">Verificación de Mercancía Física</p>
-    
-    <button class="btn-scan" onclick="toggleEscaneo()">📷 Escanear Código de Barras</button>
-    <div id="scanner-container"></div>
-
-    <input type="text" id="searchId" placeholder="ID o Código UPC..." onkeypress="if(event.key==='Enter') buscar()">
-    <button class="btn-ticket" onclick="buscar()">🔍 Buscar Producto</button>
-
-    <div id="infoProd"></div>
-
-    <div class="carrito">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <b>Listado de Remisión:</b>
-            <span id="contador" style="font-size:0.8rem; background:#eee; padding:2px 8px; border-radius:10px;">0 ítems</span>
-        </div>
-        <div id="listaItems" style="margin-top:10px;"></div>
-        
-        <div id="seccionFinalizar" style="display:none; margin-top:15px; border-top: 1px dashed #ccc; padding-top:10px;">
-            <label style="font-size:0.8rem; font-weight:bold;">Folio Sistema Legacy:</label>
-            <input type="text" id="folioManual" placeholder="Introduce el Folio (Ej: A-5502)" style="border: 2px solid var(--azul);">
-            <button class="btn-ticket" onclick="validarYGenerar()">🎫 Generar Ticket y WhatsApp</button>
-        </div>
+<div id="login-screen">
+    <div class="login-card">
+        <h2 style="color:var(--azul)">Mas Ferre</h2>
+        <input type="text" id="user-name" placeholder="Tu nombre...">
+        <select id="user-role">
+            <option value="asesor">Asesor (Reportar)</option>
+            <option value="auxiliar">Auxiliar (Surtir)</option>
+        </select>
+        <button class="btn-primary" onclick="login()">Entrar</button>
     </div>
 </div>
 
-<div id="modalTicket" class="modal">
-    <div class="modal-content">
-        <h3 id="folioDisplay" style="margin-bottom:0;"></h3>
-        <p style="font-size:0.8rem; color:#666;">Presentar en caja para cobrar</p>
-        <svg id="barcode"></svg>
-        <button class="btn-add" onclick="enviarWhatsApp()">📲 Compartir Pedido por WhatsApp</button>
-        <button onclick="location.reload()" style="background:#666; color:white;">Nueva Remisión</button>
+<div id="app-screen">
+    <div class="header">
+        <h3 id="display-role" style="margin:0; text-transform: uppercase;"></h3>
+        <small id="display-user"></small>
+    </div>
+
+    <div id="view-asesor" style="display:none">
+        <div class="card">
+            <h4>🔎 Reportar Hueco</h4>
+            <input type="text" id="searchId" placeholder="ID Producto...">
+            <button class="btn-primary" onclick="buscarParaAsesor()">Consultar Producto</button>
+            <div id="resultadoBusqueda"></div>
+        </div>
+    </div>
+
+    <div id="view-auxiliar" style="display:none">
+        <div class="card">
+            <h4>📦 Tareas en Tiempo Real</h4>
+            <div id="lista-ordenes">Esperando órdenes...</div>
+        </div>
     </div>
 </div>
 
 <script>
-    const URL_BASE = "https://mas-ferre-inventario-default-rtdb.firebaseio.com";
-    let carrito = [];
-    let escaneando = false;
+    // CONFIGURACIÓN DE FIREBASE (Usa tus datos reales aquí)
+    const firebaseConfig = {
+        databaseURL: "https://mas-ferre-inventario-default-rtdb.firebaseio.com"
+    };
+    
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-    // --- LÓGICA DE ESCANEO ---
-    function toggleEscaneo() {
-        if (!escaneando) {
-            document.getElementById('scanner-container').style.display = 'block';
-            Quagga.init({
-                inputStream: {
-                    name: "Live",
-                    type: "LiveStream",
-                    target: document.querySelector('#scanner-container'),
-                    constraints: { facingMode: "environment" }
-                },
-                decoder: {
-                    readers: ["ean_reader", "code_128_reader", "upc_reader", "upc_e_reader"]
-                }
-            }, (err) => {
-                if (err) { alert("Error cámara: " + err); return; }
-                Quagga.start();
-                escaneando = true;
-            });
+    let currentUser = "";
+    let currentRole = "";
 
-            Quagga.onDetected((data) => {
-                const codigo = data.codeResult.code;
-                document.getElementById('searchId').value = codigo;
-                new Audio('https://www.soundjay.com/button/beep-07.mp3').play();
-                detenerEscaneo();
-                buscar();
-            });
+    function login() {
+        currentUser = document.getElementById('user-name').value;
+        currentRole = document.getElementById('user-role').value;
+        if(!currentUser) return alert("Escribe tu nombre");
+
+        if(currentRole === 'auxiliar') Notification.requestPermission();
+
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('app-screen').style.display = 'block';
+        document.getElementById('display-user').innerText = "Usuario: " + currentUser;
+        document.getElementById('display-role').innerText = currentRole;
+
+        if(currentRole === 'asesor') {
+            document.getElementById('view-asesor').style.display = 'block';
         } else {
-            detenerEscaneo();
+            document.getElementById('view-auxiliar').style.display = 'block';
+            iniciarEscuchaRealTime(); 
         }
     }
 
-    function detenerEscaneo() {
-        Quagga.stop();
-        document.getElementById('scanner-container').style.display = 'none';
-        escaneando = false;
-    }
-
-    // --- LÓGICA DE BUSQUEDA Y CARRITO ---
-    async function buscar() {
+    // --- LÓGICA ASESOR (Escritura) ---
+    async function buscarParaAsesor() {
         const id = document.getElementById('searchId').value.trim();
-        if(!id) return;
-        
-        // Buscamos en Firebase (Nota: Aquí asumo que tus IDs en Firebase coinciden con los códigos que escaneas)
-        const res = await fetch(`${URL_BASE}/inventario/${id}.json`);
-        const item = await res.json();
-        
-        if(item) {
-            document.getElementById('infoProd').innerHTML = `
-                <div style="padding:15px; background:#e9f2ff; border-radius:8px; margin-top:10px; border:1px solid #b3d4ff;">
-                    <b>${item.nombre}</b><br>
-                    <div style="margin-top:8px; display:flex; align-items:center; gap:10px;">
-                        <span>Cant:</span>
-                        <input type="number" id="tempCant" value="1" min="1" class="cant-input" style="width:80px !important;">
-                        <button class="btn-add" style="margin:0" onclick="agregar('${id}', '${item.nombre}')">Añadir</button>
-                    </div>
-                </div>`;
-        } else { alert("Producto no encontrado con el código: " + id); }
+        db.ref('inventario/' + id).once('value', (snapshot) => {
+            const item = snapshot.val();
+            if(item) {
+                document.getElementById('resultadoBusqueda').innerHTML = `
+                    <div class="card" style="border:1px solid #ddd; margin-top:10px;">
+                        <b>${item.nombre}</b><br>
+                        <button class="btn-success" onclick="enviarOrden('${id}', '${item.nombre}')">REPORTAR HUECO</button>
+                    </div>`;
+            } else { alert("No encontrado"); }
+        });
     }
 
-    function agregar(id, nombre) {
-        const cantidad = document.getElementById('tempCant').value;
-        const existe = carrito.find(p => p.id === id);
-        if(existe) { existe.cant = parseInt(existe.cant) + parseInt(cantidad); } 
-        else { carrito.push({id, nombre, cant: cantidad, verificado: false}); }
-        actualizarCarrito();
-        document.getElementById('infoProd').innerHTML = "";
-        document.getElementById('searchId').value = "";
+    function enviarOrden(id, nombre) {
+        db.ref('ordenes_trabajo').push({
+            id_prod: id,
+            producto: nombre,
+            reportado_por: currentUser,
+            timestamp: firebase.database.ServerValue.TIMESTAMP,
+            estado: "Pendiente"
+        });
+        alert("¡Enviado!");
+        document.getElementById('resultadoBusqueda').innerHTML = "";
     }
 
-    function actualizarCarrito() {
-        const div = document.getElementById('listaItems');
-        document.getElementById('contador').innerText = `${carrito.length} ítems`;
-        div.innerHTML = carrito.map((i, index) => `
-            <div class="item-carrito">
-                <input type="checkbox" class="check-prod" ${i.verificado ? 'checked' : ''} onchange="carrito[${index}].verificado = !carrito[${index}].verificado">
-                <div class="info-txt"><b>${i.nombre}</b><br><small>ID: ${i.id}</small></div>
-                <div style="display:flex; align-items:center; gap:5px;">
-                    <input type="number" class="cant-input" value="${i.cant}" onchange="carrito[${index}].cant = this.value; actualizarCarrito();">
-                    <button class="btn-del" onclick="eliminar(${index})">✕</button>
+    // --- LÓGICA AUXILIAR (Escucha Real Time) ---
+    function iniciarEscuchaRealTime() {
+        // Esta es la "magia". Se ejecuta cada vez que algo cambie en la base de datos.
+        db.ref('ordenes_trabajo').on('value', (snapshot) => {
+            const data = snapshot.val();
+            const container = document.getElementById('lista-ordenes');
+            
+            if(!data) {
+                container.innerHTML = "No hay tareas.";
+                return;
+            }
+
+            const pendientes = Object.keys(data)
+                .map(key => ({key, ...data[key]}))
+                .filter(o => o.estado === "Pendiente");
+
+            // Notificar si hay algo nuevo
+            if(window.ultimoCount && pendientes.length > window.ultimoCount) {
+                lanzarAlerta();
+            }
+            window.ultimoCount = pendientes.length;
+
+            container.innerHTML = pendientes.map(o => `
+                <div class="orden-item">
+                    <b>${o.producto}</b><br>
+                    <small>Pedida por: ${o.reportado_por}</small><br>
+                    <button class="btn-primary" style="margin-top:5px; padding:5px" onclick="finalizar('${o.key}')">Listo, surtido</button>
                 </div>
-            </div>`).join('');
-        document.getElementById('seccionFinalizar').style.display = carrito.length > 0 ? 'block' : 'none';
+            `).join('');
+        });
     }
 
-    function eliminar(index) {
-        if(confirm("¿Quitar producto?")) { carrito.splice(index, 1); actualizarCarrito(); }
+    function lanzarAlerta() {
+        new Audio('https://www.soundjay.com/button/beep-09.mp3').play();
+        if (Notification.permission === "granted") {
+            new Notification("¡Nueva Tarea!", { body: "Hay un nuevo producto por resurtir." });
+        }
     }
 
-    function validarYGenerar() {
-        const folio = document.getElementById('folioManual').value.trim();
-        if(!folio) return alert("Introduce el Folio Legacy.");
-        if(!carrito.every(i => i.verificado)) return alert("Verifica todos los productos físicamente (Check).");
-        abrirTicket(folio);
-    }
-
-    function abrirTicket(folio) {
-        document.getElementById('modalTicket').style.display = 'block';
-        document.getElementById('folioDisplay').innerText = "FOLIO: " + folio;
-        JsBarcode("#barcode", folio, { format: "CODE128", width: 2.5, height: 100, displayValue: true });
-    }
-
-    function enviarWhatsApp() {
-        const folio = document.getElementById('folioManual').value.trim();
-        let lista = "";
-        carrito.forEach(i => { lista += `- ${i.cant} x ${i.nombre} (ID:${i.id})%0A`; });
-        const mensaje = `*MAS FERRE - PEDIDO LISTO*%0A%0A*FOLIO:* ${folio}%0A%0A*DETALLE:*%0A${lista}%0A✅ _Verificado físicamente._`;
-        window.open(`https://wa.me/?text=${mensaje}`);
+    function finalizar(key) {
+        db.ref('ordenes_trabajo/' + key).update({
+            estado: "Completado",
+            finalizado_por: currentUser
+        });
     }
 </script>
 </body>
