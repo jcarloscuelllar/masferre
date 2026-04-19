@@ -6,75 +6,49 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mas Ferre - Logística Real-Time</title>
+    <title>Mas Ferre - Real-Time</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     
     <style>
-        :root { 
-            --azul: #0056b3; 
-            --gris: #f4f7fa; 
-            --verde: #28a745; 
-            --naranja: #f39c12; 
-            --rojo: #dc3545; 
-            --celeste: #00a8e8; 
-        }
+        :root { --azul: #0056b3; --gris: #f4f7fa; --verde: #28a745; --naranja: #f39c12; --celeste: #00a8e8; --rojo: #dc3545; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--gris); margin: 0; padding: 0; }
 
-        /* EVITAR PARPADEO: Todo oculto por defecto */
+        /* Pantallas ocultas por defecto */
+        #loading-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: white; position: fixed; width: 100%; z-index: 999; }
         #login-screen, #app-screen { display: none; }
 
-        /* PANTALLA DE CARGA ESTILO APP */
-        #loading-screen { 
-            display: flex; 
-            flex-direction: column;
-            align-items: center; 
-            justify-content: center; 
-            height: 100vh; 
-            background: white;
-            font-family: 'Segoe UI', sans-serif;
-        }
-
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--gris); margin: 0; padding: 0; }
-        
-        /* LOGIN */
-        #login-screen { display: none; align-items: center; justify-content: center; height: 100vh; padding: 20px; box-sizing: border-box; }
+        #login-screen { align-items: center; justify-content: center; height: 100vh; padding: 20px; box-sizing: border-box; }
         .login-card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
         
-        /* APP STRUCTURE */
-        #app-screen { padding: 15px; padding-top: 0; }
-        .header { background: var(--azul); color: white; padding: 20px 15px; text-align: center; border-radius: 0 0 20px 20px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .header { background: var(--azul); color: white; padding: 20px 15px; text-align: center; border-radius: 0 0 20px 20px; margin-bottom: 20px; }
         .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 15px; }
         
-        input, select, button { width: 100%; padding: 14px; margin-top: 10px; border-radius: 10px; border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; transition: 0.3s; }
-        
-        .btn-primary { background: var(--azul); color: white; border: none; font-weight: bold; cursor: pointer; }
+        input, select, button { width: 100%; padding: 14px; margin-top: 10px; border-radius: 10px; border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; }
+        .btn-primary { background: var(--azul); color: white; border: none; font-weight: bold; }
         .btn-success { background: var(--verde); color: white; border: none; font-weight: bold; }
         
-        /* ORDENES */
-        .orden-item { border-left: 6px solid var(--naranja); background: #fff9f0; padding: 15px; margin-bottom: 15px; border-radius: 8px; animation: slideIn 0.3s ease-out; }
+        .orden-item { border-left: 6px solid var(--naranja); background: #fff9f0; padding: 15px; margin-bottom: 15px; border-radius: 8px; }
         .orden-item.en-proceso { border-left-color: var(--celeste); background: #f0faff; }
-        
         .status-badge { font-size: 0.65rem; padding: 4px 8px; border-radius: 20px; color: white; float: right; font-weight: bold; text-transform: uppercase; }
         .bg-pendiente { background: var(--naranja); }
         .bg-proceso { background: var(--celeste); }
         
         .logout-btn { background: rgba(255,255,255,0.2); border: 1px solid white; color: white; padding: 6px 12px; font-size: 11px; margin-top: 10px; cursor: pointer; border-radius: 5px; width: auto; }
-        
-        @keyframes slideIn { from { transform: translateX(30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     </style>
 </head>
 <body>
 
 <div id="loading-screen">
     <h2 style="color:var(--azul)">Mas Ferre</h2>
-    <p style="color:#888">Verificando sesión...</p>
+    <p>Verificando sesión...</p>
 </div>
 
 <div id="login-screen">
     <div class="login-card">
-        <h2 style="color:var(--azul); margin-top:0;">Mas Ferre</h2>
-        <p style="color:#666; font-size:14px;">Identifícate para entrar</p>
+        <h2 style="color:var(--azul); margin:0;">Mas Ferre</h2>
+        <p style="color:#666;">Inicia sesión</p>
         <input type="text" id="user-name" placeholder="Tu nombre...">
         <select id="user-role">
             <option value="asesor">Asesor</option>
@@ -83,80 +57,75 @@
             <option value="jefe">Jefe de Autoservicio</option>
             <option value="gerente">Gerente</option>
         </select>
-        <button class="btn-primary" onclick="login()">ENTRAR AL SISTEMA</button>
+        <button class="btn-primary" onclick="login()">ENTRAR</button>
     </div>
 </div>
 
 <div id="app-screen">
     <div class="header">
-        <h3 id="display-role" style="margin:0; letter-spacing: 1px;">ROL</h3>
-        <small id="display-user" style="opacity:0.9;"></small><br>
+        <h3 id="display-role" style="margin:0;">ROL</h3>
+        <small id="display-user"></small><br>
         <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
     </div>
-
     <div id="view-asesor" style="display:none">
         <div class="card">
-            <h4 style="margin-top:0;">🔎 Reportar Hueco</h4>
+            <h4>🔎 Reportar Hueco</h4>
             <input type="text" id="searchId" placeholder="ID del Producto..." onkeypress="if(event.key==='Enter') buscarParaAsesor()">
-            <button class="btn-primary" onclick="buscarParaAsesor()">Consultar Producto</button>
+            <button class="btn-primary" onclick="buscarParaAsesor()">Consultar</button>
             <div id="resultadoBusqueda"></div>
         </div>
     </div>
-
     <div id="view-auxiliar" style="display:none">
         <div class="card">
-            <h4 style="margin-top:0;">📦 Órdenes de Trabajo</h4>
-            <div id="lista-ordenes">Sincronizando tareas...</div>
+            <h4>📦 Tareas Real-Time</h4>
+            <div id="lista-ordenes">Cargando...</div>
         </div>
     </div>
 </div>
 
 <script>
-    // --- 1. CONFIGURACIÓN FIREBASE ---
+    // 1. CONFIGURACIÓN
     const firebaseConfig = { databaseURL: "https://mas-ferre-inventario-default-rtdb.firebaseio.com" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    db.ref('ordenes_trabajo').keepSynced(true);
 
-    // --- 2. LÓGICA DE SESIÓN TIPO APP (Infalible) ---
+    // 2. SESIÓN (Corregida para que no tarde)
     function verificarSesion() {
         const u = localStorage.getItem('mf_user');
         const r = localStorage.getItem('mf_role');
-        const loader = document.getElementById('loading-screen');
         
-        // Pequeño retraso para asegurar que el DOM cargó
-        setTimeout(() => {
-            loader.style.display = 'none';
-            if (u && r) {
-                iniciarApp(u, r);
-            } else {
-                document.getElementById('login-screen').style.display = 'flex';
-            }
-        }, 300); 
+        // Quitamos el loading inmediatamente
+        document.getElementById('loading-screen').style.display = 'none';
+
+        if (u && r) {
+            iniciarApp(u, r);
+        } else {
+            document.getElementById('login-screen').style.display = 'flex';
+        }
     }
 
     function login() {
-        const user = document.getElementById('user-name').value.trim();
-        const role = document.getElementById('user-role').value;
-        if(!user) return alert("Escribe tu nombre");
-        
-        localStorage.setItem('mf_user', user);
-        localStorage.setItem('mf_role', role);
-        iniciarApp(user, role);
+        const u = document.getElementById('user-name').value.trim();
+        const r = document.getElementById('user-role').value;
+        if(!u) return alert("Escribe tu nombre");
+        localStorage.setItem('mf_user', u);
+        localStorage.setItem('mf_role', r);
+        iniciarApp(u, r);
     }
 
-    function iniciarApp(user, role) {
+    function iniciarApp(u, r) {
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('app-screen').style.display = 'block';
-        document.getElementById('display-user').innerText = "Bienvenido: " + user;
-        document.getElementById('display-role').innerText = role.toUpperCase();
+        document.getElementById('display-user').innerText = "Usuario: " + u;
+        document.getElementById('display-role').innerText = r.toUpperCase();
 
-        if(role === 'asesor') {
+        if(r === 'asesor') {
             document.getElementById('view-asesor').style.display = 'block';
+            document.getElementById('view-auxiliar').style.display = 'none';
         } else {
             document.getElementById('view-auxiliar').style.display = 'block';
-            if (Notification.permission !== "granted") Notification.requestPermission();
-            iniciarEscuchaRealTime(); 
+            document.getElementById('view-asesor').style.display = 'none';
+            iniciarEscuchaRealTime();
         }
     }
 
@@ -165,45 +134,41 @@
         location.reload();
     }
 
-    // --- 3. LÓGICA ASESOR ---
+    // 3. ASESOR
     function buscarParaAsesor() {
         const id = document.getElementById('searchId').value.trim();
-        const resDiv = document.getElementById('resultadoBusqueda');
+        const res = document.getElementById('resultadoBusqueda');
         if(!id) return;
-        resDiv.innerHTML = "<p style='text-align:center;'>Buscando...</p>";
-        db.ref('inventario/' + id).once('value', (s) => {
+        res.innerHTML = "Buscando...";
+        db.ref('inventario/' + id).once('value', s => {
             const item = s.val();
             if(item) {
-                resDiv.innerHTML = `<div class="card" style="border:2px solid var(--azul); margin-top:15px;">
-                    <b>${item.nombre}</b><br><button class="btn-success" onclick="enviarOrden('${id}', '${item.nombre}')">🚩 REPORTAR HUECO</button>
+                res.innerHTML = `<div class="card" style="border:2px solid var(--azul); margin-top:10px;">
+                    <b>${item.nombre}</b><br>
+                    <button class="btn-success" onclick="enviarOrden('${id}', '${item.nombre}')">🚩 REPORTAR HUECO</button>
                 </div>`;
-            } else { resDiv.innerHTML = "<p style='color:var(--rojo); text-align:center;'>No encontrado</p>"; }
+            } else { res.innerHTML = "No encontrado"; }
         });
     }
 
-    function enviarOrden(id, nombre) {
+    function enviarOrden(id, nom) {
         db.ref('ordenes_trabajo').push({
-            id_prod: id, producto: nombre, reportado_por: localStorage.getItem('mf_user'),
+            id_prod: id, producto: nom, reportado_por: localStorage.getItem('mf_user'),
             estado: "Pendiente", timestamp: firebase.database.ServerValue.TIMESTAMP
         });
         alert("Enviado");
         document.getElementById('resultadoBusqueda').innerHTML = "";
-        document.getElementById('searchId').value = "";
     }
 
-    // --- 4. LÓGICA AUXILIAR ---
+    // 4. AUXILIAR
     function iniciarEscuchaRealTime() {
-        db.ref('ordenes_trabajo').on('value', (snapshot) => {
-            const data = snapshot.val();
+        db.ref('ordenes_trabajo').on('value', s => {
+            const data = s.val();
             const container = document.getElementById('lista-ordenes');
-            if(!data) { container.innerHTML = "Sin pendientes."; return; }
+            if(!data) { container.innerHTML = "Sin tareas."; return; }
 
             const lista = Object.keys(data).map(k => ({k, ...data[k]})).filter(o => o.estado !== "Completado");
             
-            const pendientes = lista.filter(o => o.estado === "Pendiente");
-            if(window.lastC !== undefined && pendientes.length > window.lastC) lanzarAlerta();
-            window.lastC = pendientes.length;
-
             if(lista.length === 0) { container.innerHTML = "Todo surtido."; return; }
 
             container.innerHTML = lista.map(o => {
@@ -214,9 +179,9 @@
                     <span class="status-badge ${proc ? 'bg-proceso' : 'bg-pendiente'}">${o.estado}</span>
                     <b>${o.producto}</b><br><small>ID: ${o.id_prod} | Por: ${o.reportado_por}</small>
                     <div style="margin-top:10px;">
-                    ${!proc ? `<button class="btn-primary" onclick="tomarTarea('${o.k}')">🚀 Tomar Tarea</button>` : 
+                    ${!proc ? `<button class="btn-primary" onclick="tomarTarea('${o.k}')">🚀 Tomar</button>` : 
                       (esMia ? `<button class="btn-success" onclick="finalizarTarea('${o.k}')">✔ Finalizar</button>` : 
-                      `<p style="color:var(--celeste); font-size:13px;">⏳ Surtida por: ${o.tomada_por}</p>`)}
+                      `<p style="color:var(--celeste); font-size:12px;">⏳ Surtida por: ${o.tomada_por}</p>`)}
                     </div>
                 </div>`;
             }).join('');
@@ -231,13 +196,7 @@
         db.ref('ordenes_trabajo/' + k).update({ estado: "Completado", finalizado_por: localStorage.getItem('mf_user') });
     }
 
-    function lanzarAlerta() {
-        new Audio('https://www.soundjay.com/button/beep-09.mp3').play().catch(()=>{});
-        if (Notification.permission === "granted") new Notification("Mas Ferre", { body: "Nueva tarea recibida" });
-        if (navigator.vibrate) navigator.vibrate(200);
-    }
-
-    // ARRANQUE
+    // EJECUCIÓN
     verificarSesion();
 </script>
 </body>
