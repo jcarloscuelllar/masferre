@@ -4,15 +4,14 @@
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mas Ferre</title>
+    <title>Mas Ferre - Sistema Integral</title>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     
     <style>
-        :root { --azul: #0056b3; --gris: #f4f7fa; --verde: #28a745; --naranja: #f39c12; }
+        :root { --azul: #0056b3; --gris: #f4f7fa; --verde: #28a745; --naranja: #f39c12; --rojo: #dc3545; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--gris); margin: 0; padding: 0; }
         #login-screen { display: flex; align-items: center; justify-content: center; height: 100vh; padding: 20px; box-sizing: border-box; }
         .login-card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
@@ -37,7 +36,7 @@
             <option value="asesor">Asesor</option>
             <option value="auxiliar">Auxiliar</option>
         </select>
-        <button class="btn-primary" onclick="login()">Entrar</button>
+        <button class="btn-primary" onclick="login()">Entrar al Sistema</button>
     </div>
 </div>
 
@@ -51,8 +50,8 @@
     <div id="view-asesor" style="display:none">
         <div class="card">
             <h4>🔎 Reportar Hueco</h4>
-            <input type="text" id="searchId" placeholder="ID Producto...">
-            <button class="btn-primary" onclick="buscarParaAsesor()">Consultar Producto</button>
+            <input type="text" id="searchId" placeholder="ID Producto..." onkeypress="if(event.key==='Enter') buscarParaAsesor()">
+            <button class="btn-primary" onclick="buscarParaAsesor()">🔍 Consultar Producto</button>
             <div id="resultadoBusqueda"></div>
         </div>
     </div>
@@ -60,142 +59,146 @@
     <div id="view-auxiliar" style="display:none">
         <div class="card">
             <h4>📦 Tareas en Tiempo Real</h4>
-            <div id="lista-ordenes">Conectando...</div>
+            <div id="lista-ordenes">Conectando con el servidor...</div>
         </div>
     </div>
 </div>
 
 <script>
-    // --- CONFIGURACIÓN Y PERSISTENCIA ---
-const firebaseConfig = {
-    databaseURL: "https://mas-ferre-inventario-default-rtdb.firebaseio.com"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-// TRUCO 1: Forzar a la base de datos a estar activa
-// Esto le dice a Firebase que mantenga los datos en memoria local
-db.ref('ordenes_trabajo').keepSynced(true);
-
-// TRUCO 2: Detectar cuando el usuario vuelve a la pestaña
-// Si el auxiliar bloqueó el cel y lo desbloqueó, esto fuerza la actualización
-document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") {
-        console.log("App visible: Reconectando...");
-        firebase.database().goOnline(); // Fuerza la reconexión de red
-    }
-});
-
-window.onload = () => {
-    const guardadoUser = localStorage.getItem('mf_user');
-    const guardadoRole = localStorage.getItem('mf_role');
-    if(guardadoUser && guardadoRole) {
-        iniciarApp(guardadoUser, guardadoRole);
-    }
-};
-
-function login() {
-    const user = document.getElementById('user-name').value;
-    const role = document.getElementById('user-role').value;
-    if(!user) return alert("Escribe tu nombre");
-    localStorage.setItem('mf_user', user);
-    localStorage.setItem('mf_role', role);
-    iniciarApp(user, role);
-}
-
-function iniciarApp(user, role) {
-    if(role === 'auxiliar') Notification.requestPermission();
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app-screen').style.display = 'block';
-    document.getElementById('display-user').innerText = "Usuario: " + user;
-    document.getElementById('display-role').innerText = role;
-
-    if(role === 'asesor') {
-        document.getElementById('view-asesor').style.display = 'block';
-    } else {
-        document.getElementById('view-auxiliar').style.display = 'block';
-        iniciarEscuchaRealTime(); 
-    }
-}
-
-// --- LÓGICA DE ESCUCHA (MODIFICADA) ---
-function iniciarEscuchaRealTime() {
-    const container = document.getElementById('lista-ordenes');
+    const firebaseConfig = {
+        databaseURL: "https://mas-ferre-inventario-default-rtdb.firebaseio.com"
+    };
     
-    // TRUCO 3: Escuchar cambios en la conexión
-    const connectedRef = db.ref(".info/connected");
-    connectedRef.on("value", (snap) => {
-        if (snap.val() === true) {
-            console.log("Conectado a Firebase");
-        } else {
-            console.log("Desconectado... intentando reconectar");
-        }
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Persistencia de datos en la rama de órdenes
+    db.ref('ordenes_trabajo').keepSynced(true);
+
+    // Reconexión automática al volver a la App
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") firebase.database().goOnline();
     });
 
-    // Escucha principal
-    db.ref('ordenes_trabajo').on('value', (snapshot) => {
-        const data = snapshot.val();
-        
-        // Si no hay datos, limpiar pantalla
-        if(!data) {
-            container.innerHTML = "No hay tareas pendientes.";
-            window.ultimoCount = 0;
-            return;
-        }
+    window.onload = () => {
+        const guardadoUser = localStorage.getItem('mf_user');
+        const guardadoRole = localStorage.getItem('mf_role');
+        if(guardadoUser && guardadoRole) iniciarApp(guardadoUser, guardadoRole);
+    };
 
-        const pendientes = Object.keys(data)
-            .map(key => ({key, ...data[key]}))
-            .filter(o => o.estado === "Pendiente");
+    function login() {
+        const user = document.getElementById('user-name').value.trim();
+        const role = document.getElementById('user-role').value;
+        if(!user) return alert("Escribe tu nombre");
+        localStorage.setItem('mf_user', user);
+        localStorage.setItem('mf_role', role);
+        iniciarApp(user, role);
+    }
 
-        // Solo lanzar alerta si el número de pendientes creció
-        if(window.ultimoCount !== undefined && pendientes.length > window.ultimoCount) {
-            lanzarAlerta();
-        }
-        window.ultimoCount = pendientes.length;
+    function iniciarApp(user, role) {
+        if(role === 'auxiliar') Notification.requestPermission();
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('app-screen').style.display = 'block';
+        document.getElementById('display-user').innerText = "Usuario: " + user;
+        document.getElementById('display-role').innerText = role;
 
-        if(pendientes.length === 0) {
-            container.innerHTML = "Todo surtido. ¡Buen trabajo!";
+        if(role === 'asesor') {
+            document.getElementById('view-asesor').style.display = 'block';
         } else {
-            // Renderizar lista
-            container.innerHTML = pendientes.map(o => `
-                <div class="orden-item">
-                    <b>${o.producto}</b><br>
-                    <small>ID: ${o.id_prod} | Por: ${o.reportado_por}</small><br>
-                    <button class="btn-primary" style="margin-top:8px; padding:8px" onclick="finalizar('${o.key}')">Marcar como surtido</button>
-                </div>
-            `).join('');
+            document.getElementById('view-auxiliar').style.display = 'block';
+            iniciarEscuchaRealTime(); 
         }
-    });
-}
+    }
 
-function lanzarAlerta() {
-    // Intentar vibración si el dispositivo lo permite
-    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-    
-    const audio = new Audio('https://www.soundjay.com/button/beep-09.mp3');
-    audio.play().catch(e => console.log("Audio bloqueado"));
-    
-    if (Notification.permission === "granted") {
-        new Notification("¡Nueva Tarea!", { 
-            body: "Hay productos por resurtir.",
-            tag: "resurtido-alerta" // Evita que se amontonen mil notificaciones
+    function logout() {
+        localStorage.clear();
+        location.reload();
+    }
+
+    // --- LÓGICA ASESOR (CORREGIDA) ---
+    function buscarParaAsesor() {
+        const id = document.getElementById('searchId').value.trim();
+        const resDiv = document.getElementById('resultadoBusqueda');
+        if(!id) return;
+
+        resDiv.innerHTML = "<p style='color:gray; text-align:center;'>Buscando en inventario...</p>";
+
+        db.ref('inventario/' + id).once('value', (snapshot) => {
+            const item = snapshot.val();
+            if(item) {
+                resDiv.innerHTML = `
+                    <div class="card" style="border:2px solid var(--azul); margin-top:10px; background:#f0f7ff;">
+                        <b style="font-size:1.1rem;">${item.nombre}</b><br>
+                        <button class="btn-success" onclick="enviarOrden('${id}', '${item.nombre}')">🚩 REPORTAR HUECO</button>
+                    </div>`;
+            } else { 
+                resDiv.innerHTML = `<p style="color:var(--rojo); text-align:center; margin-top:10px;">⚠️ ID no encontrado</p>`;
+            }
         });
     }
-}
 
-function finalizar(key) {
-    db.ref('ordenes_trabajo/' + key).update({
-        estado: "Completado",
-        finalizado_por: localStorage.getItem('mf_user')
-    });
-}
+    function enviarOrden(id, nombre) {
+        db.ref('ordenes_trabajo').push({
+            id_prod: id,
+            producto: nombre,
+            reportado_por: localStorage.getItem('mf_user'),
+            timestamp: firebase.database.ServerValue.TIMESTAMP,
+            estado: "Pendiente"
+        });
+        alert("Orden enviada al auxiliar");
+        document.getElementById('resultadoBusqueda').innerHTML = "";
+        document.getElementById('searchId').value = "";
+    }
 
-function logout() {
-    localStorage.clear();
-    location.reload();
-}
+    // --- LÓGICA AUXILIAR ---
+    function iniciarEscuchaRealTime() {
+        db.ref('ordenes_trabajo').on('value', (snapshot) => {
+            const data = snapshot.val();
+            const container = document.getElementById('lista-ordenes');
+            
+            if(!data) {
+                container.innerHTML = "No hay tareas pendientes.";
+                window.ultimoCount = 0;
+                return;
+            }
 
+            const pendientes = Object.keys(data)
+                .map(key => ({key, ...data[key]}))
+                .filter(o => o.estado === "Pendiente");
+
+            if(window.ultimoCount !== undefined && pendientes.length > window.ultimoCount) {
+                lanzarAlerta();
+            }
+            window.ultimoCount = pendientes.length;
+
+            if(pendientes.length === 0) {
+                container.innerHTML = "Todo surtido. ¡Buen trabajo!";
+            } else {
+                container.innerHTML = pendientes.map(o => `
+                    <div class="orden-item">
+                        <b>${o.producto}</b><br>
+                        <small>ID: ${o.id_prod} | Por: ${o.reportado_por}</small><br>
+                        <button class="btn-primary" style="margin-top:8px; padding:8px" onclick="finalizar('${o.key}')">✔ Marcar como surtido</button>
+                    </div>
+                `).join('');
+            }
+        });
+    }
+
+    function lanzarAlerta() {
+        const audio = new Audio('https://www.soundjay.com/button/beep-09.mp3');
+        audio.play().catch(() => {});
+        if (Notification.permission === "granted") {
+            new Notification("Mas Ferre", { body: "Nueva tarea de resurtido recibida." });
+        }
+    }
+
+    function finalizar(key) {
+        db.ref('ordenes_trabajo/' + key).update({
+            estado: "Completado",
+            finalizado_por: localStorage.getItem('mf_user')
+        });
+    }
 </script>
 </body>
 </html>
