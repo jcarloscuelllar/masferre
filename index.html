@@ -181,45 +181,67 @@
     }
 
     async function enviarTelegram() {
-        const nombre = document.getElementById('lbl-dev-nombre').innerText;
-        if(!nombre) return showToast("Faltan datos del producto", "warning");
+    const nombreProd = document.getElementById('lbl-dev-nombre').innerText;
+    if(!nombreProd) return showToast("Busca un producto primero", "warning");
 
-        const btn = document.getElementById('btn-tg');
-        const fotoInput = document.getElementById('dev-foto');
-        btn.disabled = true; btn.innerText = "⏳ Enviando...";
+    const btn = document.getElementById('btn-tg');
+    const fotoInput = document.getElementById('dev-foto');
+    
+    btn.disabled = true; 
+    btn.innerText = "⏳ Enviando...";
 
-        const msj = `📦 *DEVOLUCIÓN REGISTRADA*\n\n` +
-                    `🔹 *Producto:* ${nombre}\n` +
-                    `🔹 *Cliente:* ${document.getElementById('dev-cliente').value}\n` +
-                    `🔹 *Factura:* ${document.getElementById('dev-factura').value}\n` +
-                    `🔹 *Asesor:* ${document.getElementById('dev-asesor').value}\n` +
-                    `🔹 *Motivo:* ${document.getElementById('dev-motivo').value}\n\n` +
-                    `👤 *Registró:* ${localStorage.getItem('mf_user')}`;
+    // Limpiamos los textos de caracteres especiales que rompen el Markdown de Telegram
+    const limpiar = (txt) => txt.replace(/[*_`\[]/g, '');
 
-        const formData = new FormData();
-        formData.append('chat_id', TG_CHAT_ID);
-        formData.append('parse_mode', 'Markdown');
+    const cliente = limpiar(document.getElementById('dev-cliente').value || "No indicado");
+    const factura = limpiar(document.getElementById('dev-factura').value || "S/N");
+    const motivo = limpiar(document.getElementById('dev-motivo').value || "Sin detalle");
+    const asesor = document.getElementById('dev-asesor').value;
+    const user = localStorage.getItem('mf_user') || "Usuario";
 
-        let url = `https://api.telegram.org/bot${TG_TOKEN}/sendMessage`;
+    const msj = `📦 *DEVOLUCION REGISTRADA*\n\n` +
+                `🔹 *Producto:* ${limpiar(nombreProd)}\n` +
+                `🔹 *Cliente:* ${cliente}\n` +
+                `🔹 *Factura:* ${factura}\n` +
+                `🔹 *Asesor:* ${asesor}\n` +
+                `🔹 *Motivo:* ${motivo}\n\n` +
+                `👤 *Registra:* ${user}`;
 
-        if (fotoInput.files && fotoInput.files[0]) {
-            url = `https://api.telegram.org/bot${TG_TOKEN}/sendPhoto`;
-            formData.append('photo', fotoInput.files[0]);
-            formData.append('caption', msj);
-        } else {
-            formData.append('text', msj);
-        }
+    const formData = new FormData();
+    formData.append('chat_id', TG_CHAT_ID);
+    formData.append('parse_mode', 'Markdown');
 
-        try {
-            const res = await fetch(url, { method: 'POST', body: formData });
-            if(res.ok) showToast("Enviado al grupo ✅", "success");
-            else showToast("Error de envío ❌", "error");
-        } catch (e) {
-            showToast("Error de conexión", "error");
-        } finally {
-            btn.disabled = false; btn.innerText = "✈️ ENVIAR A TELEGRAM";
-        }
+    let url = `https://api.telegram.org/bot${TG_TOKEN}/sendMessage`;
+
+    // Si hay foto la enviamos, si no, solo texto
+    if (fotoInput.files && fotoInput.files[0]) {
+        url = `https://api.telegram.org/bot${TG_TOKEN}/sendPhoto`;
+        formData.append('photo', fotoInput.files[0]);
+        formData.append('caption', msj);
+    } else {
+        formData.append('text', msj);
     }
+
+    try {
+        const response = await fetch(url, { method: 'POST', body: formData });
+        const resultado = await response.json();
+
+        if (response.ok) {
+            showToast("¡Enviado a Telegram! ✅", "success");
+            // Opcional: limpiar campos tras éxito
+            fotoInput.value = "";
+        } else {
+            // Esto nos dirá exactamente qué dice Telegram (ej: "Bad Request: can't parse entities")
+            console.error("Error de Telegram:", resultado);
+            showToast("Telegram dice: " + resultado.description, "error");
+        }
+    } catch (error) {
+        showToast("Error de conexión. Revisa tu internet.", "error");
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "✈️ ENVIAR A TELEGRAM";
+    }
+}
 
     verificarSesion();
 </script>
