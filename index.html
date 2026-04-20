@@ -7,47 +7,67 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mas Ferre - Logística Avanzada</title>
+
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+
     <style>
         :root { --azul: #0056b3; --gris: #f4f7fa; --verde: #28a745; --naranja: #f39c12; --celeste: #00a8e8; --rojo: #dc3545; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--gris); margin: 0; padding: 0; }
-        #loading-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: white; position: fixed; width: 100%; z-index: 999; }
+
+        body { font-family: 'Segoe UI', sans-serif; background: var(--gris); margin: 0; }
+
+        #loading-screen { display: flex; align-items: center; justify-content: center; height: 100vh; background: white; position: fixed; width: 100%; z-index: 999; }
+
         #login-screen, #app-screen { display: none; }
-        #login-screen { align-items: center; justify-content: center; height: 100vh; padding: 20px; box-sizing: border-box; }
+
+        #login-screen { align-items: center; justify-content: center; height: 100vh; padding: 20px; }
+
         .login-card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
-        .header { background: var(--azul); color: white; padding: 20px 15px; text-align: center; border-radius: 0 0 20px 20px; margin-bottom: 20px; }
-        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 15px; }
-        input, select, button { width: 100%; padding: 14px; margin-top: 10px; border-radius: 10px; border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; font-weight: bold; }
+
+        .header { background: var(--azul); color: white; padding: 20px; text-align: center; border-radius: 0 0 20px 20px; }
+
+        .card { background: white; padding: 15px; border-radius: 12px; margin: 15px; }
+
+        input, select, button {
+            width: 100%; padding: 14px; margin-top: 10px;
+            border-radius: 10px; border: 1px solid #ddd;
+            font-size: 16px;
+        }
+
         .btn-primary { background: var(--azul); color: white; border: none; }
         .btn-success { background: var(--verde); color: white; border: none; }
         .btn-warning { background: var(--naranja); color: white; border: none; }
-        .btn-danger { background: var(--rojo); color: white; border: none; }
-        .orden-item { border-left: 6px solid var(--naranja); background: #fff9f0; padding: 15px; margin-bottom: 15px; border-radius: 8px; }
-        .orden-item.en-proceso { border-left-color: var(--celeste); background: #f0faff; }
-        .status-badge { font-size: 0.65rem; padding: 4px 8px; border-radius: 20px; color: white; float: right; text-transform: uppercase; }
-        .bg-pendiente { background: var(--naranja); }
-        .bg-proceso { background: var(--celeste); }
-        .logout-btn { background: rgba(255,255,255,0.2); border: 1px solid white; color: white; padding: 6px 12px; font-size: 11px; margin-top: 10px; cursor: pointer; border-radius: 5px; width: auto; }
-        .stock-tag { background: #eee; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; color: #333; }
-        /* Modo Enfoque */
-        #modo-enfoque { display: none; text-align: center; }
-        .enfoque-card { border: 3px solid var(--celeste); padding: 30px; border-radius: 20px; background: white; }
+
+        .orden-item { border-left: 6px solid var(--naranja); padding: 15px; margin-bottom: 10px; background: white; }
+
+        /* TOAST */
+        #toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 14px 22px;
+            border-radius: 10px;
+            color: white;
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 2000;
+            font-weight: 500;
+        }
     </style>
 </head>
+
 <body>
 
-<div id="loading-screen"><h2>Mas Ferre</h2><p>Cargando sistema...</p></div>
+<div id="loading-screen"><h2>Mas Ferre</h2></div>
 
 <div id="login-screen">
     <div class="login-card">
-        <h2 style="color:var(--azul)">Mas Ferre</h2>
+        <h2>Mas Ferre</h2>
         <input type="text" id="user-name" placeholder="Tu nombre...">
         <select id="user-role">
             <option value="asesor">Asesor</option>
             <option value="auxiliar">Auxiliar</option>
-            <option value="inventarista">Inventarista</option>
-            <option value="jefe">Jefe de Autoservicio</option>
             <option value="gerente">Gerente</option>
         </select>
         <button class="btn-primary" onclick="login()">ENTRAR</button>
@@ -56,184 +76,109 @@
 
 <div id="app-screen">
     <div class="header">
-        <h3 id="display-role" style="margin:0;">ROL</h3>
-        <small id="display-user"></small><br>
-        <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
+        <h3 id="display-role"></h3>
+        <small id="display-user"></small>
+        <button onclick="logout()">Salir</button>
     </div>
 
-    <div id="view-gerente" style="display:none" class="card">
-        <button class="btn-warning" onclick="descargarReporteCompras()">📥 Descargar CSV Compras</button>
-    </div>
-
-    <div id="view-asesor" style="display:none">
+    <div id="view-asesor">
         <div class="card">
-            <h4>🔎 Reportar Hueco</h4>
-            <input type="text" id="searchId" placeholder="ID del Producto..." onkeypress="if(event.key==='Enter') buscarParaAsesor()">
-            <button class="btn-primary" onclick="buscarParaAsesor()">Consultar</button>
+            <input id="searchId" placeholder="ID producto">
+            <button onclick="buscarParaAsesor()">Buscar</button>
             <div id="resultadoBusqueda"></div>
-        </div>
-    </div>
-
-    <div id="view-auxiliar" style="display:none">
-        <div id="modo-enfoque">
-            <div class="enfoque-card">
-                <span style="color:var(--celeste); font-weight:bold;">ESTÁS SURTIENDO:</span>
-                <h1 id="enfoque-producto">---</h1>
-                <p>ID: <span id="enfoque-id">---</span></p>
-                <p>Existencia en Bodega: <b id="enfoque-stock">0</b> unidades</p>
-                <button class="btn-success" id="btn-finalizar-enfoque" style="font-size:20px; padding:20px;">✔ TERMINAR SURTIDO</button>
-            </div>
-        </div>
-        
-        <div id="lista-normal">
-            <div class="card">
-                <h4>📦 Órdenes de Trabajo Disponibles</h4>
-                <div id="lista-ordenes">Esperando tareas...</div>
-            </div>
         </div>
     </div>
 </div>
 
+<!-- TOAST -->
+<div id="toast"></div>
+
 <script>
-    const firebaseConfig = { databaseURL: "https://mas-ferre-inventario-default-rtdb.firebaseio.com" };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+const firebaseConfig = { databaseURL: "https://mas-ferre-inventario-default-rtdb.firebaseio.com" };
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-    function verificarSesion() {
-        const u = localStorage.getItem('mf_user'), r = localStorage.getItem('mf_role');
+/* TOAST */
+function showToast(msg, type = "info") {
+    const t = document.getElementById('toast');
+
+    let color = "#333";
+    if(type === "success") color = "#28a745";
+    if(type === "error") color = "#dc3545";
+    if(type === "warning") color = "#f39c12";
+
+    t.innerText = msg;
+    t.style.background = color;
+    t.style.opacity = "1";
+
+    setTimeout(() => {
+        t.style.opacity = "0";
+    }, 2500);
+}
+
+/* LOGIN */
+function verificarSesion() {
+    const u = localStorage.getItem('mf_user');
+    if (u) iniciarApp(u);
+    else {
         document.getElementById('loading-screen').style.display = 'none';
-        if (u && r) iniciarApp(u, r);
-        else document.getElementById('login-screen').style.display = 'flex';
+        document.getElementById('login-screen').style.display = 'flex';
     }
+}
 
-    function login() {
-        const u = document.getElementById('user-name').value.trim(), r = document.getElementById('user-role').value;
-        if(!u) return alert("Escribe tu nombre");
-        localStorage.setItem('mf_user', u); localStorage.setItem('mf_role', r);
-        iniciarApp(u, r);
-    }
+function login() {
+    const u = document.getElementById('user-name').value.trim();
+    if(!u) return showToast("Escribe tu nombre", "warning");
 
-    function iniciarApp(u, r) {
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('app-screen').style.display = 'block';
-        document.getElementById('display-user').innerText = "Usuario: " + u;
-        document.getElementById('display-role').innerText = r.toUpperCase();
+    localStorage.setItem('mf_user', u);
+    iniciarApp(u);
+}
 
-        if(r === 'gerente' || r === 'jefe' || r === 'inventarista') document.getElementById('view-gerente').style.display = 'block';
-        if(r === 'asesor') document.getElementById('view-asesor').style.display = 'block';
-        else {
-            document.getElementById('view-auxiliar').style.display = 'block';
-            iniciarEscuchaRealTime();
-        }
-    }
+function iniciarApp(u) {
+    document.getElementById('loading-screen').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display = 'block';
 
-    function logout() { localStorage.clear(); location.reload(); }
+    document.getElementById('display-user').innerText = u;
+}
 
-    // LÓGICA ASESOR
-    function buscarParaAsesor() {
-        const id = document.getElementById('searchId').value.trim();
-        const res = document.getElementById('resultadoBusqueda');
-        if(!id) return;
-        res.innerHTML = "Consultando...";
-        db.ref('inventario/' + id).once('value', s => {
-            const item = s.val();
-            if(item) {
-                // REGLA: Si hay más de 5 es para Auxiliar, si no para Compras
-                const esParaSurtir = (item.cantidad > 5);
-                res.innerHTML = `
-                    <div class="card" style="border:2px solid ${esParaSurtir ? 'var(--verde)' : 'var(--naranja)'}; margin-top:10px;">
-                        <b>${item.nombre}</b><br>
-                        Existencia actual: <span class="stock-tag">${item.cantidad}</span><br>
-                        ${esParaSurtir ? 
-                            `<button class="btn-success" onclick="enviarA('${id}', '${item.nombre}', ${item.cantidad}, 'ordenes_trabajo')">🚩 SURTIR DESDE BODEGA</button>` :
-                            `<button class="btn-warning" onclick="enviarA('${id}', '${item.nombre}', ${item.cantidad}, 'pedidos_compras')">📦 SOLICITAR A COMPRAS</button>`
-                        }
-                    </div>`;
-            } else res.innerHTML = "No encontrado";
-        });
-    }
+/* ASESOR */
+function buscarParaAsesor() {
+    const id = document.getElementById('searchId').value.trim();
+    if(!id) return showToast("Ingresa un ID", "warning");
 
-    function enviarA(id, nom, cant, rama) {
-        db.ref(rama).push({
-            id_prod: id, producto: nom, cantidad_sistema: cant,
-            reportado_por: localStorage.getItem('mf_user'),
-            estado: "Pendiente", timestamp: firebase.database.ServerValue.TIMESTAMP,
-            fecha: new Date().toLocaleString()
-        });
-        alert("Enviado correctamente");
-        document.getElementById('resultadoBusqueda').innerHTML = "";
-    }
+    db.ref('inventario/' + id).once('value', s => {
+        const item = s.val();
+        if(!item) return showToast("No encontrado", "error");
 
-    // LÓGICA AUXILIAR
-    function iniciarEscuchaRealTime() {
-        db.ref('ordenes_trabajo').on('value', s => {
-            const data = s.val();
-            const container = document.getElementById('lista-ordenes');
-            const enfoque = document.getElementById('modo-enfoque');
-            const listaNormal = document.getElementById('lista-normal');
-            
-            if(!data) { container.innerHTML = "Sin pendientes."; return; }
+        document.getElementById('resultadoBusqueda').innerHTML = `
+            <b>${item.nombre}</b><br>
+            Stock: ${item.cantidad}<br>
+            <button onclick="enviarA('${id}','${item.nombre}',${item.cantidad})">Enviar</button>
+        `;
+    });
+}
 
-            const items = Object.keys(data).map(k => ({k, ...data[k]})).filter(o => o.estado !== "Completado");
-            
-            // ¿Tengo alguna tarea asignada a mi? (MODO ENFOQUE)
-            const miTarea = items.find(o => o.tomada_por === localStorage.getItem('mf_user') && o.estado === "En Proceso");
+function enviarA(id, nom, cant) {
+    db.ref('ordenes').push({
+        id_prod: id,
+        producto: nom,
+        cantidad: cant,
+        usuario: localStorage.getItem('mf_user')
+    });
 
-            if(miTarea) {
-                listaNormal.style.display = 'none';
-                enfoque.style.display = 'block';
-                document.getElementById('enfoque-producto').innerText = miTarea.producto;
-                document.getElementById('enfoque-id').innerText = miTarea.id_prod;
-                document.getElementById('enfoque-stock').innerText = miTarea.cantidad_sistema;
-                document.getElementById('btn-finalizar-enfoque').onclick = () => finalizarTarea(miTarea.k);
-            } else {
-                enfoque.style.display = 'none';
-                listaNormal.style.display = 'block';
-                
-                if(items.length === 0) { container.innerHTML = "Todo surtido."; return; }
+    showToast("Enviado correctamente", "success");
+    document.getElementById('resultadoBusqueda').innerHTML = "";
+}
 
-                container.innerHTML = items.map(o => {
-                    const proc = o.estado === "En Proceso";
-                    return `
-                    <div class="orden-item ${proc ? 'en-proceso' : ''}">
-                        <span class="status-badge ${proc ? 'bg-proceso' : 'bg-pendiente'}">${o.estado}</span>
-                        <b>${o.producto}</b><br>
-                        <small>ID: ${o.id_prod} | Stock: <b>${o.cantidad_sistema}</b></small><br>
-                        ${!proc ? `<button class="btn-primary" onclick="tomarTarea('${o.k}')">🚀 TOMAR TAREA</button>` : 
-                        `<p style="color:var(--celeste); font-size:12px;">⏳ Surtida por: ${o.tomada_por}</p>`}
-                    </div>`;
-                }).join('');
-            }
-        });
-    }
+/* LOGOUT */
+function logout() {
+    localStorage.clear();
+    location.reload();
+}
 
-    function tomarTarea(k) {
-        db.ref('ordenes_trabajo/' + k).update({ estado: "En Proceso", tomada_por: localStorage.getItem('mf_user') });
-    }
-
-    function finalizarTarea(k) {
-        db.ref('ordenes_trabajo/' + k).update({ estado: "Completado", finalizado_por: localStorage.getItem('mf_user') });
-    }
-
-    // DESCARGA CSV
-    function descargarReporteCompras() {
-        db.ref('pedidos_compras').once('value', s => {
-            const data = s.val();
-            if(!data) return alert("No hay pedidos");
-            let csv = "ID,Producto,Existencia,Reportado_Por,Fecha\n";
-            Object.values(data).forEach(o => {
-                csv += `${o.id_prod},${o.producto},${o.cantidad_sistema},${o.reportado_por},${o.fecha}\n`;
-            });
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.setAttribute('href', url);
-            a.setAttribute('download', 'compras_mas_ferre.csv');
-            a.click();
-        });
-    }
-
-    verificarSesion();
+verificarSesion();
 </script>
+
 </body>
 </html>
