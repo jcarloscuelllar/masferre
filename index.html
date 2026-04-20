@@ -18,10 +18,11 @@
         .login-card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
         .header { background: var(--azul); color: white; padding: 20px 15px; text-align: center; border-radius: 0 0 20px 20px; margin-bottom: 20px; }
         .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 15px; }
-        input, select, button { width: 100%; padding: 14px; margin-top: 10px; border-radius: 10px; border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; font-weight: bold; }
+        input, select, button, textarea { width: 100%; padding: 14px; margin-top: 10px; border-radius: 10px; border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; font-weight: bold; }
         .btn-primary { background: var(--azul); color: white; border: none; }
         .btn-success { background: var(--verde); color: white; border: none; }
         .btn-warning { background: var(--naranja); color: white; border: none; }
+        .btn-whatsapp { background: #25d366; color: white; border: none; margin-top: 5px; }
         .orden-item { border-left: 6px solid var(--naranja); background: #fff9f0; padding: 15px; margin-bottom: 15px; border-radius: 8px; }
         .orden-item.en-proceso { border-left-color: var(--celeste); background: #f0faff; }
         .status-badge { font-size: 0.65rem; padding: 4px 8px; border-radius: 20px; color: white; float: right; text-transform: uppercase; font-weight: bold; }
@@ -35,6 +36,9 @@
         .toast.success { background: var(--verde); }
         .toast.error { background: var(--rojo); }
         .toast.warning { background: var(--naranja); }
+        .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .menu-card { background: white; padding: 20px; border-radius: 15px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); cursor: pointer; border: 2px solid transparent; }
+        .menu-card:active { border-color: var(--azul); background: #f0f4ff; }
         @keyframes fadeInOut { 0% { opacity: 0; transform: translateY(20px); } 10% { opacity: 1; transform: translateY(0); } 90% { opacity: 1; } 100% { opacity: 0; } }
         @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     </style>
@@ -66,11 +70,42 @@
         <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
     </div>
 
-    <div id="view-gerente" style="display:none" class="card">
-        <button class="btn-warning" onclick="descargarReporteCompras()">📥 Descargar CSV Compras</button>
+    <div id="view-inventarista" style="display:none; padding: 0 15px;">
+        <div class="menu-grid">
+            <div class="menu-card" onclick="toggleSeccion('sec-devoluciones')">
+                <span style="font-size: 30px;">🔄</span><br>
+                <b>Devoluciones</b>
+            </div>
+            <div class="menu-card" onclick="descargarReporteCompras()">
+                <span style="font-size: 30px;">📥</span><br>
+                <b>CSV Compras</b>
+            </div>
+        </div>
+
+        <div id="sec-devoluciones" class="card" style="display:none; margin-top: 20px;">
+            <h4 style="margin:0; color:var(--azul)">Nueva Devolución</h4>
+            <input type="text" id="dev-clave" placeholder="Clave del producto..." oninput="buscarProductoDevolucion()">
+            <div id="dev-info-prod" style="margin-top:10px; background:#f9f9f9; padding:10px; border-radius:8px; font-size:14px; display:none;">
+                Producto: <b id="lbl-dev-nombre"></b><br>
+                Stock Actual: <b id="lbl-dev-stock"></b>
+            </div>
+            <input type="text" id="dev-cliente" placeholder="Nombre del Cliente">
+            <input type="text" id="dev-factura" placeholder="No. de Factura">
+            <input type="date" id="dev-fecha" placeholder="Fecha de Compra">
+            <select id="dev-asesor">
+                <option value="3345 Antonio">3345 Antonio</option>
+            </select>
+            <textarea id="dev-motivo" placeholder="Motivo/Información del cliente..." rows="3"></textarea>
+            
+            <p style="font-size: 12px; margin-bottom: 0;">📸 Evidencia fotográfica:</p>
+            <input type="file" id="dev-foto" accept="image/*" capture="environment">
+            
+            <button class="btn-success" onclick="guardarDevolucion()">💾 GUARDAR EN SISTEMA</button>
+            <button class="btn-whatsapp" onclick="compartirWhatsApp()">💬 ENVIAR POR WHATSAPP</button>
+        </div>
     </div>
 
-    <div id="view-asesor" style="display:none">
+    <div id="view-asesor" style="display:none; padding: 0 15px;">
         <div class="card">
             <h4>🔎 Reportar Hueco</h4>
             <input type="text" id="searchId" placeholder="ID del Producto..." onkeypress="if(event.key==='Enter') buscarParaAsesor()">
@@ -79,7 +114,7 @@
         </div>
     </div>
 
-    <div id="view-auxiliar" style="display:none">
+    <div id="view-auxiliar" style="display:none; padding: 0 15px;">
         <div id="modo-enfoque">
             <div class="enfoque-card">
                 <span style="color:var(--celeste); font-weight:bold;">ESTÁS SURTIENDO:</span>
@@ -131,13 +166,80 @@
         document.getElementById('app-screen').style.display = 'block';
         document.getElementById('display-user').innerText = "Usuario: " + u;
         document.getElementById('display-role').innerText = r.toUpperCase();
-        if(r === 'gerente' || r === 'jefe' || r === 'inventarista') document.getElementById('view-gerente').style.display = 'block';
+        
+        // Control de Vistas
+        if(r === 'inventarista' || r === 'gerente' || r === 'jefe') document.getElementById('view-inventarista').style.display = 'block';
         if(r === 'asesor') document.getElementById('view-asesor').style.display = 'block';
-        else { document.getElementById('view-auxiliar').style.display = 'block'; iniciarEscuchaRealTime(); }
+        if(r === 'auxiliar') { document.getElementById('view-auxiliar').style.display = 'block'; iniciarEscuchaRealTime(); }
     }
 
     function logout() { localStorage.clear(); location.reload(); }
 
+    function toggleSeccion(id) {
+        const sec = document.getElementById(id);
+        sec.style.display = sec.style.display === 'none' ? 'block' : 'none';
+    }
+
+    // --- LÓGICA DEVOLUCIONES ---
+    function buscarProductoDevolucion() {
+        const clave = document.getElementById('dev-clave').value.trim();
+        const infoDiv = document.getElementById('dev-info-prod');
+        if(clave.length < 3) { infoDiv.style.display = 'none'; return; }
+        
+        db.ref('inventario/' + clave).once('value', s => {
+            const item = s.val();
+            if(item) {
+                infoDiv.style.display = 'block';
+                document.getElementById('lbl-dev-nombre').innerText = item.nombre;
+                document.getElementById('lbl-dev-stock').innerText = item.cantidad;
+            } else {
+                infoDiv.style.display = 'none';
+            }
+        });
+    }
+
+    function guardarDevolucion() {
+        const clave = document.getElementById('dev-clave').value;
+        const nombre = document.getElementById('lbl-dev-nombre').innerText;
+        if(!nombre) return showToast("Clave no válida", "error");
+
+        const data = {
+            clave: clave,
+            producto: nombre,
+            cliente: document.getElementById('dev-cliente').value,
+            factura: document.getElementById('dev-factura').value,
+            fecha_compra: document.getElementById('dev-fecha').value,
+            asesor_venta: document.getElementById('dev-asesor').value,
+            motivo: document.getElementById('dev-motivo').value,
+            inventarista: localStorage.getItem('mf_user'),
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        };
+
+        db.ref('devoluciones').push(data);
+        showToast("Devolución registrada en Firebase", "success");
+        // Reset campos básico
+        document.getElementById('dev-clave').value = "";
+        document.getElementById('dev-info-prod').style.display = 'none';
+    }
+
+    function compartirWhatsApp() {
+        const nombre = document.getElementById('lbl-dev-nombre').innerText;
+        if(!nombre) return showToast("Primero busca un producto", "warning");
+
+        const msj = `*DEVOLUCIÓN MAS FERRE*\n` +
+                    `📦 *Prod:* ${nombre}\n` +
+                    `👤 *Cliente:* ${document.getElementById('dev-cliente').value}\n` +
+                    `🧾 *Factura:* ${document.getElementById('dev-factura').value}\n` +
+                    `📅 *Compra:* ${document.getElementById('dev-fecha').value}\n` +
+                    `🤝 *Vendedor:* ${document.getElementById('dev-asesor').value}\n` +
+                    `💬 *Motivo:* ${document.getElementById('dev-motivo').value}\n` +
+                    `📝 *Registra:* ${localStorage.getItem('mf_user')}`;
+        
+        const url = "https://wa.me/?text=" + encodeURIComponent(msj);
+        window.open(url, '_blank');
+    }
+
+    // --- LÓGICA ASESOR ---
     function buscarParaAsesor() {
         const id = document.getElementById('searchId').value.trim();
         const res = document.getElementById('resultadoBusqueda');
@@ -155,7 +257,7 @@
                             `<button class="btn-warning" onclick="enviarA('${id}', '${item.nombre}', ${item.cantidad}, 'pedidos_compras')">📦 PEDIR A COMPRAS</button>`
                         }
                     </div>`;
-            } else { res.innerHTML = "ID no encontrado"; showToast("ID no encontrado", "error"); }
+            } else { res.innerHTML = "No encontrado"; showToast("ID no encontrado", "error"); }
         });
     }
 
@@ -168,9 +270,9 @@
         });
         showToast("Reportado con éxito", "success");
         document.getElementById('resultadoBusqueda').innerHTML = "";
-        document.getElementById('searchId').value = "";
     }
 
+    // --- LÓGICA AUXILIAR ---
     function iniciarEscuchaRealTime() {
         db.ref('ordenes_trabajo').on('value', s => {
             const data = s.val();
@@ -204,32 +306,17 @@
         });
     }
 
-    // --- CAMBIO CLAVE: TRANSACCIÓN PARA EVITAR COLISIONES ---
     function tomarTarea(key) {
         const user = localStorage.getItem('mf_user');
-        const taskRef = db.ref('ordenes_trabajo/' + key);
-
-        taskRef.transaction((currentData) => {
-            if (currentData === null) return currentData; // La tarea no existe
-            
-            // Si ya no está pendiente, alguien más la tomó justo ahora
-            if (currentData.estado !== "Pendiente") {
-                return; // Abortar transacción
-            }
-
-            // Si está libre, la marcamos
+        db.ref('ordenes_trabajo/' + key).transaction((currentData) => {
+            if (currentData === null) return currentData;
+            if (currentData.estado !== "Pendiente") return;
             currentData.estado = "En Proceso";
             currentData.tomada_por = user;
             return currentData;
-            
-        }, (error, committed, snapshot) => {
-            if (error) {
-                showToast("Error de conexión", "error");
-            } else if (!committed) {
-                showToast("⚠️ ¡Demasiado tarde! Alguien más tomó esta tarea", "warning");
-            } else {
-                showToast("Tarea asignada correctamente", "success");
-            }
+        }, (error, committed) => {
+            if (committed) showToast("Tarea asignada", "success");
+            else showToast("⚠️ Alguien más la tomó", "warning");
         });
     }
 
