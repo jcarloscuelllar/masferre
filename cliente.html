@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asistencia - Mas Ferre</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    
+    <style>
+        :root {
+            --primary: #0056b3;
+            --bg: #f4f7fa;
+            --text: #333;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
+        }
+
+        .container {
+            background: var(--white);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 1rem;
+            letter-spacing: -1px;
+        }
+
+        h1 {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            color: #555;
+        }
+
+        .input-group {
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            color: #888;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            box-sizing: border-box;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+        }
+
+        .btn-solicitar {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            width: 100%;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.3s;
+        }
+
+        .btn-solicitar:active {
+            transform: scale(0.98);
+        }
+
+        .btn-solicitar:disabled {
+            background-color: #ccc;
+        }
+
+        #status-area {
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container" id="main-card">
+    <div class="logo">MAS FERRE</div>
+    <h1>¿Necesitas ayuda de un asesor?</h1>
+    
+    <div id="form-solicitud">
+        <div class="input-group">
+            <label>Tu nombre (Opcional)</label>
+            <input type="text" id="nombre-cliente" placeholder="Ej. Juan Pérez">
+        </div>
+        <button class="btn-solicitar" onclick="pedirAyuda()" id="btn-main">Llamar Asesor</button>
+    </div>
+
+    <div id="status-area" class="hidden">
+        <div class="loader"></div>
+        <span id="status-text">Buscando asesor disponible...</span>
+    </div>
+</div>
+
+<script>
+    // TU CONFIGURACIÓN DE FIREBASE (Usa la misma de tu app principal)
+    const firebaseConfig = {
+        databaseURL: "https://mas-ferre-inventario-default-rtdb.firebaseio.com",
+    };
+    
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    function pedirAyuda() {
+        const nombre = document.getElementById('nombre-cliente').value || "Cliente anónimo";
+        const btn = document.getElementById('btn-main');
+        const form = document.getElementById('form-solicitud');
+        const statusArea = document.getElementById('status-area');
+        const statusText = document.getElementById('status-text');
+
+        // Desactivar UI
+        btn.disabled = true;
+        
+        // Crear ID único para esta solicitud
+        const nuevaSolicitudRef = db.ref('cola_espera').push();
+        const solicitudId = nuevaSolicitudRef.key;
+
+        const datos = {
+            nombre: nombre,
+            estado: "esperando",
+            timestamp: Date.now(),
+            id: solicitudId
+        };
+
+        nuevaSolicitudRef.set(datos).then(() => {
+            form.classList.add('hidden');
+            statusArea.classList.remove('hidden');
+
+            // Escuchar cambios en esta solicitud específica
+            db.ref('cola_espera/' + solicitudId).on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data && data.estado === "atendiendo") {
+                    statusText.innerHTML = `¡En camino! El asesor <b>${data.asesor_id}</b> va a tu ubicación.`;
+                    document.querySelector('.loader').classList.add('hidden');
+                }
+            });
+        });
+    }
+</script>
+
+</body>
+</html>
