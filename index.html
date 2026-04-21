@@ -353,6 +353,71 @@
             const a = document.createElement('a'); a.href = url; a.download = 'compras.csv'; a.click();
         });
     }
+    
+    // --- LÓGICA DE ATENCIÓN A CLIENTES ---
+
+const seccionEspera = document.getElementById('seccion-espera');
+const listaEspera = document.getElementById('lista-clientes-espera');
+
+// 1. Escuchar la cola en tiempo real
+db.ref('cola_espera').on('value', (snapshot) => {
+    const data = snapshot.val();
+    listaEspera.innerHTML = ""; // Limpiar lista
+    let hayClientes = false;
+
+    if (data) {
+        Object.keys(data).forEach(id => {
+            const cliente = data[id];
+            
+            // Solo mostrar si están esperando
+            if (cliente.estado === "esperando") {
+                hayClientes = true;
+                const tarjeta = document.createElement('div');
+                tarjeta.className = 'card-item'; // Usando tu clase de estilo actual
+                tarjeta.style.cssText = "display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #ff9800; margin-bottom: 8px; padding: 12px; background: #fff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);";
+                
+                tarjeta.innerHTML = `
+                    <div>
+                        <div style="font-weight: bold; font-size: 1rem;">${cliente.nombre}</div>
+                        <div style="font-size: 0.8rem; color: #888;">Esperando asistencia...</div>
+                    </div>
+                    <button onclick="aceptarCliente('${id}')" 
+                            style="background: #0056b3; color: white; border: none; padding: 8px 15px; border-radius: 8px; font-weight: bold; cursor: pointer;">
+                        ATENDER
+                    </button>
+                `;
+                listaEspera.appendChild(tarjeta);
+            }
+        });
+    }
+
+    // Mostrar sección solo si hay gente esperando
+    seccionEspera.style.display = hayClientes ? "block" : "none";
+});
+
+// 2. Función para tomar el turno (Evita duplicados)
+function aceptarCliente(clienteId) {
+    const asesor = localStorage.getItem('mf_user') || "Asesor";
+    const ref = db.ref('cola_espera/' + clienteId);
+
+    // Usamos transacción para que solo uno pueda ganar el turno
+    ref.transaction((currentData) => {
+        if (currentData && currentData.estado === "esperando") {
+            currentData.estado = "atendiendo";
+            currentData.asesor_id = asesor;
+            return currentData;
+        }
+        return; // Abortar si ya no está esperando
+    }, (error, committed) => {
+        if (committed) {
+            showToast("✅ Cliente asignado. Ve a ayudarlo.", "success");
+            // Opcional: Podrías mandar un mensaje a Telegram avisando que ya fue tomado
+        } else {
+            showToast("❌ Alguien más ya tomó este cliente", "error");
+        }
+    });
+}
+
 
     verificarSesion();
 </script>
