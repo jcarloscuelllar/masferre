@@ -1,431 +1,420 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <link rel="manifest" href="manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mas Ferre</title>
+    <title>Excelencia Operativa MasFerre</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
-    <style>
-        :root { --azul: #0056b3; --gris: #f4f7fa; --verde: #28a745; --naranja: #f39c12; --celeste: #00a8e8; --rojo: #dc3545; --telegram: #0088cc; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--gris); margin: 0; padding: 0; overflow-x: hidden; }
-        
-        /* Pantallas de Carga y Login */
-        #loading-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: white; position: fixed; width: 100%; z-index: 999; }
-        #login-screen, #app-screen { display: none; }
-        #login-screen { align-items: center; justify-content: center; height: 100vh; padding: 20px; box-sizing: border-box; }
-        .login-card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
-        
-        /* Header y Estética General */
-        .header { background: var(--azul); color: white; padding: 20px 15px; text-align: center; border-radius: 0 0 20px 20px; margin-bottom: 20px; }
-        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 15px; }
-        input, select, button, textarea { width: 100%; padding: 14px; margin-top: 10px; border-radius: 10px; border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; font-weight: bold; }
-        
-        .btn-primary { background: var(--azul); color: white; border: none; }
-        .btn-success { background: var(--verde); color: white; border: none; }
-        .btn-warning { background: var(--naranja); color: white; border: none; }
-        .btn-telegram { background: var(--telegram); color: white; border: none; margin-top: 5px; }
-        .logout-btn { background: rgba(255,255,255,0.2); border: 1px solid white; color: white; padding: 6px 12px; font-size: 11px; margin-top: 10px; cursor: pointer; border-radius: 5px; width: auto; }
-
-        /* Grid de Menú para Inventarista/Gerente */
-        .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
-        .menu-card { background: white; padding: 20px; border-radius: 15px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); cursor: pointer; border: 2px solid transparent; transition: 0.3s; }
-        .menu-card:active { transform: scale(0.95); background: #f0f4ff; border-color: var(--azul); }
-
-        /* Estilos de Órdenes (Auxiliar) */
-        .orden-item { border-left: 6px solid var(--naranja); background: #fff9f0; padding: 15px; margin-bottom: 15px; border-radius: 8px; position: relative; }
-        .orden-item.en-proceso { border-left-color: var(--celeste); background: #f0faff; }
-        .status-badge { font-size: 0.65rem; padding: 4px 8px; border-radius: 20px; color: white; float: right; text-transform: uppercase; font-weight: bold; }
-        .bg-pendiente { background: var(--naranja); }
-        .bg-proceso { background: var(--celeste); }
-
-        /* Modo Enfoque */
-        #modo-enfoque { display: none; text-align: center; animation: slideUp 0.4s ease; }
-        .enfoque-card { border: 3px solid var(--celeste); padding: 30px; border-radius: 20px; background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-
-        /* Toasts */
-        #toast-container { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; width: 90%; max-width: 300px; }
-        .toast { background: #333; color: white; padding: 12px 20px; border-radius: 8px; margin-top: 10px; font-size: 14px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.2); animation: fadeInOut 3s forwards; opacity: 0; }
-        .toast.success { background: var(--verde); }
-        .toast.error { background: var(--rojo); }
-        .toast.warning { background: var(--naranja); }
-
-        @keyframes fadeInOut { 0% { opacity: 0; transform: translateY(20px); } 10% { opacity: 1; transform: translateY(0); } 90% { opacity: 1; } 100% { opacity: 0; } }
-        @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-    </style>
 </head>
-<body>
+<body class="bg-gray-50 font-sans">
+    <div id="root"></div>
 
-<div id="loading-screen"><h2>Mas Ferre</h2><p>Sincronizando sistemas...</p></div>
-<div id="toast-container"></div>
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
 
-<div id="login-screen">
-    <div class="login-card">
-        <h2 style="color:var(--azul)">Mas Ferre</h2>
-        <input type="text" id="user-name" placeholder="Tu nombre...">
-        <select id="user-role">
-            <option value="asesor">Asesor</option>
-            <option value="auxiliar">Auxiliar</option>
-            <option value="inventarista">Inventarista</option>
-            <option value="jefe">Jefe de Autoservicio</option>
-            <option value="gerente">Gerente</option>
-        </select>
-        <button class="btn-primary" onclick="login()">ENTRAR</button>
-    </div>
-</div>
+        // --- CONFIGURACIÓN FIREBASE ---
+        const firebaseConfig = { databaseURL: "https://mas-ferre-inventario-default-rtdb.firebaseio.com" };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
-<div id="app-screen">
-    <div class="header">
-        <h3 id="display-role" style="margin:0;">ROL</h3>
-        <small id="display-user"></small><br>
-        <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
-    </div>
-    
-<div id="seccion-espera" style="margin: 15px; display: none;">
-    <h3 style="font-size: 0.9rem; color: #888; margin-bottom: 10px;">🔔 CLIENTES EN ESPERA</h3>
-    <div id="lista-clientes-espera"></div>
-</div>
+        // --- CONFIG TELEGRAM ---
+        const TG_TOKEN = "8706006265:AAETnU9WUcq_sbTAWd6vof9Q1VoLVobORWQ"; 
+        const TG_CHAT_ID = "-1003928780691";
 
+        function App() {
+            const [isLoggedIn, setIsLoggedIn] = useState(false);
+            const [user, setUser] = useState({ name: "", role: "" });
+            const [menuOpen, setMenuOpen] = useState(false);
+            const [seccionActual, setSeccionActual] = useState("");
+            const [toasts, setToasts] = useState([]);
 
-    <div id="view-inventarista" style="display:none; padding: 0 15px;">
-        <div class="menu-grid">
-            <div class="menu-card" onclick="toggleSeccion('sec-devoluciones')">
-                <span style="font-size: 30px;">🔄</span><br><b>Devoluciones</b>
-            </div>
-            <div class="menu-card" onclick="descargarReporteCompras()">
-                <span style="font-size: 30px;">📥</span><br><b>CSV Compras</b>
-            </div>
-        </div>
+            // Persistencia de sesión
+            useEffect(() => {
+                const savedUser = localStorage.getItem('mf_user');
+                const savedRole = localStorage.getItem('mf_role');
+                if (savedUser && savedRole) {
+                    setUser({ name: savedUser, role: savedRole });
+                    setSeccionActual(savedRole.charAt(0).toUpperCase() + savedRole.slice(1));
+                    setIsLoggedIn(true);
+                }
+            }, []);
 
-        <div id="sec-devoluciones" class="card" style="display:none; border: 2px solid var(--azul);">
-            <h4 style="margin:0; color:var(--azul)">Nueva Devolución</h4>
-            <input type="text" id="dev-clave" placeholder="Clave del producto..." oninput="buscarProductoDevolucion()">
-            <div id="dev-info-prod" style="margin-top:10px; background:#f0faff; padding:10px; border-radius:8px; font-size:14px; display:none; border-left: 4px solid var(--celeste);">
-                Producto: <b id="lbl-dev-nombre"></b><br>Existencia: <b id="lbl-dev-stock"></b>
-            </div>
-            <input type="text" id="dev-cliente" placeholder="Nombre del Cliente">
-            <input type="text" id="dev-factura" placeholder="No. de Factura">
-            <input type="date" id="dev-fecha">
-            <select id="dev-asesor">
-                <option value="3345 Antonio">3345 Antonio</option>
-            </select>
-            <textarea id="dev-motivo" placeholder="Motivo de la devolución..." rows="3"></textarea>
-            <p style="font-size: 11px; margin-top:10px; margin-bottom:0;">📸 Adjuntar Foto Evidencia:</p>
-            <input type="file" id="dev-foto" accept="image/*" capture="environment">
-            
-            <button class="btn-success" onclick="guardarDevolucion()">💾 GUARDAR EN BASE DATOS</button>
-            <button class="btn-telegram" id="btn-tg" onclick="enviarTelegram()">✈️ ENVIAR A TELEGRAM</button>
-        </div>
-    </div>
+            const showToast = (msg, type = 'info') => {
+                const id = Date.now();
+                setToasts(prev => [...prev, { id, msg, type }]);
+                setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);
+            };
 
-    <div id="view-asesor" style="display:none; padding: 0 15px;">
-        <div class="card">
-            <h4>🔎 Reportar Hueco / Falta</h4>
-            <input type="text" id="searchId" placeholder="Clave del Producto..." onkeypress="if(event.key==='Enter') buscarParaAsesor()">
-            <button class="btn-primary" onclick="buscarParaAsesor()">Consultar Stock</button>
-            <div id="resultadoBusqueda"></div>
-        </div>
-    </div>
+            const handleLogin = (name, role) => {
+                localStorage.setItem('mf_user', name);
+                localStorage.setItem('mf_role', role);
+                setUser({ name, role });
+                setSeccionActual(role.charAt(0).toUpperCase() + role.slice(1));
+                setIsLoggedIn(true);
+            };
 
-    <div id="view-auxiliar" style="display:none; padding: 0 15px;">
-        <div id="modo-enfoque">
-            <div class="enfoque-card">
-                <span style="color:var(--celeste); font-weight:bold;">SURTIENDO AHORA:</span>
-                <h1 id="enfoque-producto">---</h1>
-                <p>ID: <span id="enfoque-id">---</span> | Stock: <b id="enfoque-stock">0</b></p>
-                <button class="btn-success" id="btn-finalizar-enfoque" style="padding:20px; font-size: 20px;">✔ TERMINAR SURTIDO</button>
-            </div>
-        </div>
-        
-        <div id="lista-normal">
-            <div class="card">
-                <h4>📦 Órdenes de Trabajo en Piso</h4>
-                <div id="lista-ordenes">Cargando tareas...</div>
-            </div>
-        </div>
-    </div>
-</div>
+            const logout = () => {
+                localStorage.clear();
+                location.reload();
+            };
 
-<script>
-    const firebaseConfig = { databaseURL: "https://mas-ferre-inventario-default-rtdb.firebaseio.com" };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+            if (!isLoggedIn) return <LoginScreen onLogin={handleLogin} /> ;
 
-    // Config Telegram
-    const TG_TOKEN = "8706006265:AAETnU9WUcq_sbTAWd6vof9Q1VoLVobORWQ"; 
-    const TG_CHAT_ID = "-1003928780691"; 
+            return (
+                <div className="min-h-screen flex flex-col">
+                    <Header 
+                        user={user} 
+                        setMenuOpen={setMenuOpen} 
+                        onLogout={logout} 
+                    />
+                    
+                    <Sidebar 
+                        isOpen={menuOpen} 
+                        setIsOpen={setMenuOpen} 
+                        setSeccion={setSeccionActual} 
+                        seccionActual={seccionActual} 
+                    />
 
-    // --- UTILIDADES ---
-    function showToast(msg, type = 'info') {
-        const container = document.getElementById('toast-container');
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`; toast.innerText = msg;
-        container.appendChild(toast);
-        setTimeout(() => toast.remove(), 3050);
-    }
+                    <main className="flex-grow p-4 md:p-8 max-w-5xl mx-auto w-full">
+                        <Toasts container={toasts} />
+                        
+                        {/* Notificación de Clientes en Espera (Global para ciertos roles) */}
+                        <ColaEspera showToast={showToast} currentUser={user.name} />
 
-    function toggleSeccion(id) {
-        const sec = document.getElementById(id);
-        sec.style.display = sec.style.display === 'none' ? 'block' : 'none';
-    }
-
-    // --- PERSISTENCIA Y LOGIN ---
-    function verificarSesion() {
-        const u = localStorage.getItem('mf_user'), r = localStorage.getItem('mf_role');
-        document.getElementById('loading-screen').style.display = 'none';
-        if (u && r) iniciarApp(u, r);
-        else document.getElementById('login-screen').style.display = 'flex';
-    }
-
-    function login() {
-        const u = document.getElementById('user-name').value.trim(), r = document.getElementById('user-role').value;
-        if(!u) return showToast("Por favor escribe tu nombre", "error");
-        localStorage.setItem('mf_user', u); localStorage.setItem('mf_role', r);
-        iniciarApp(u, r);
-    }
-
-    function iniciarApp(u, r) {
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('app-screen').style.display = 'block';
-        document.getElementById('display-user').innerText = "Usuario: " + u;
-        document.getElementById('display-role').innerText = r.toUpperCase();
-        
-        if(r === 'inventarista' || r === 'gerente' || r === 'jefe') document.getElementById('view-inventarista').style.display = 'block';
-        if(r === 'asesor') document.getElementById('view-asesor').style.display = 'block';
-        if(r === 'auxiliar' || r === 'gerente' || r === 'jefe') {
-            document.getElementById('view-auxiliar').style.display = 'block';
-            iniciarEscuchaRealTime();
+                        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mt-4">
+                            <h2 className="text-3xl font-black text-gray-800 mb-6">{seccionActual}</h2>
+                            
+                            {/* Renderizado Condicional de Vistas */}
+                            {seccionActual === "Asesor" && <ViewAsesor user={user} showToast={showToast} />}
+                            {seccionActual === "Auxiliar" && <ViewAuxiliar user={user} showToast={showToast} />}
+                            {(seccionActual === "Inventarista" || seccionActual === "Gerencia" || seccionActual === "Jefe de Autoservicio") && (
+                                <ViewInventarista user={user} showToast={showToast} />
+                            )}
+                        </div>
+                    </main>
+                </div>
+            );
         }
-    }
 
-    function logout() { localStorage.clear(); location.reload(); }
+        // --- COMPONENTES ---
 
-    // --- LOGICA DEVOLUCIONES (Telegram) ---
-    function buscarProductoDevolucion() {
-        const clave = document.getElementById('dev-clave').value.trim();
-        const infoDiv = document.getElementById('dev-info-prod');
-        if(clave.length < 3) { infoDiv.style.display = 'none'; return; }
-        db.ref('inventario/' + clave).once('value', s => {
-            const item = s.val();
-            if(item) {
-                infoDiv.style.display = 'block';
-                document.getElementById('lbl-dev-nombre').innerText = item.nombre;
-                document.getElementById('lbl-dev-stock').innerText = item.cantidad;
-            } else infoDiv.style.display = 'none';
-        });
-    }
+        function LoginScreen({ onLogin }) {
+            const [name, setName] = useState("");
+            const [role, setRole] = useState("asesor");
 
-    function guardarDevolucion() {
-        const nombre = document.getElementById('lbl-dev-nombre').innerText;
-        if(!nombre) return showToast("Clave no válida", "error");
-        db.ref('devoluciones').push({
-            clave: document.getElementById('dev-clave').value,
-            producto: nombre,
-            cliente: document.getElementById('dev-cliente').value,
-            factura: document.getElementById('dev-factura').value,
-            asesor_venta: document.getElementById('dev-asesor').value,
-            motivo: document.getElementById('dev-motivo').value,
-            inventarista: localStorage.getItem('mf_user'),
-            timestamp: firebase.database.ServerValue.TIMESTAMP
-        });
-        showToast("Guardado en Base de Datos ✅", "success");
-    }
-
-    async function enviarTelegram() {
-        const nombreProd = document.getElementById('lbl-dev-nombre').innerText;
-        if(!nombreProd) return showToast("Busca un producto primero", "warning");
-
-        const btn = document.getElementById('btn-tg');
-        const fotoInput = document.getElementById('dev-foto');
-        btn.disabled = true; btn.innerText = "⏳ Enviando...";
-
-        const limpiar = (txt) => txt.replace(/[*_`\[]/g, '');
-        const msj = `📦 *DEVOLUCION REGISTRADA*\n\n` +
-                    `🔹 *Producto:* ${limpiar(nombreProd)}\n` +
-                    `🔹 *Cliente:* ${limpiar(document.getElementById('dev-cliente').value || "N/A")}\n` +
-                    `🔹 *Factura:* ${limpiar(document.getElementById('dev-factura').value || "S/N")}\n` +
-                    `🔹 *Motivo:* ${limpiar(document.getElementById('dev-motivo').value || "Sin detalle")}\n\n` +
-                    `👤 *Registra:* ${localStorage.getItem('mf_user')}`;
-
-        const formData = new FormData();
-        formData.append('chat_id', TG_CHAT_ID);
-        formData.append('parse_mode', 'Markdown');
-
-        let url = `https://api.telegram.org/bot${TG_TOKEN}/sendMessage`;
-        if (fotoInput.files && fotoInput.files[0]) {
-            url = `https://api.telegram.org/bot${TG_TOKEN}/sendPhoto`;
-            formData.append('photo', fotoInput.files[0]);
-            formData.append('caption', msj);
-        } else { formData.append('text', msj); }
-
-        try {
-            const res = await fetch(url, { method: 'POST', body: formData });
-            if(res.ok) showToast("¡Enviado a Telegram! ✈️", "success");
-            else showToast("Error de Telegram", "error");
-        } catch (e) { showToast("Error de conexión", "error"); }
-        finally { btn.disabled = false; btn.innerText = "✈️ ENVIAR A TELEGRAM"; }
-    }
-
-    // --- LOGICA ASESOR (Surtido vs Compras) ---
-    function buscarParaAsesor() {
-        const id = document.getElementById('searchId').value.trim();
-        const res = document.getElementById('resultadoBusqueda');
-        if(!id) return;
-        res.innerHTML = "Consultando...";
-        db.ref('inventario/' + id).once('value', s => {
-            const item = s.val();
-            if(item) {
-                const esParaSurtir = (item.cantidad > 5);
-                res.innerHTML = `
-                <div class="card" style="border:2px solid ${esParaSurtir ? 'var(--verde)' : 'var(--naranja)'}">
-                    <b>${item.nombre}</b><br>Stock: <b>${item.cantidad}</b><br>
-                    <button class="${esParaSurtir?'btn-success':'btn-warning'}" 
-                    onclick="enviarA('${id}','${item.nombre}',${item.cantidad},'${esParaSurtir?'ordenes_trabajo':'pedidos_compras'}')">
-                    ${esParaSurtir?'🚩 ENVIAR A SURTIDO':'📦 MANDAR A COMPRAS'}</button>
-                </div>`;
-            } else showToast("No encontrado", "error");
-        });
-    }
-
-    function enviarA(id, nom, cant, rama) {
-        db.ref(rama).push({
-            id_prod: id, producto: nom, cantidad_sistema: cant,
-            reportado_por: localStorage.getItem('mf_user'),
-            estado: "Pendiente", fecha: new Date().toLocaleString()
-        });
-        showToast("Reporte enviado", "success");
-        document.getElementById('resultadoBusqueda').innerHTML = "";
-    }
-
-    // --- LOGICA AUXILIAR (Realtime + Transacciones) ---
-    function iniciarEscuchaRealTime() {
-        db.ref('ordenes_trabajo').on('value', s => {
-            const data = s.val();
-            const container = document.getElementById('lista-ordenes');
-            const enfoque = document.getElementById('modo-enfoque');
-            const listaNormal = document.getElementById('lista-normal');
-            
-            if(!data) { container.innerHTML = "Sin pendientes."; return; }
-            const items = Object.keys(data).map(k => ({k, ...data[k]})).filter(o => o.estado !== "Completado");
-            const miTarea = items.find(o => o.tomada_por === localStorage.getItem('mf_user') && o.estado === "En Proceso");
-
-            if(miTarea) {
-                listaNormal.style.display = 'none'; enfoque.style.display = 'block';
-                document.getElementById('enfoque-producto').innerText = miTarea.producto;
-                document.getElementById('enfoque-id').innerText = miTarea.id_prod;
-                document.getElementById('enfoque-stock').innerText = miTarea.cantidad_sistema;
-                document.getElementById('btn-finalizar-enfoque').onclick = () => finalizarTarea(miTarea.k);
-            } else {
-                enfoque.style.display = 'none'; listaNormal.style.display = 'block';
-                if(items.length === 0) { container.innerHTML = "Todo surtido."; return; }
-                container.innerHTML = items.map(o => `
-                    <div class="orden-item ${o.estado==='En Proceso'?'en-proceso':''}">
-                        <span class="status-badge ${o.estado==='En Proceso'?'bg-proceso':'bg-pendiente'}">${o.estado}</span>
-                        <b>${o.producto}</b><br><small>Stock: ${o.cantidad_sistema}</small><br>
-                        ${o.estado!=='En Proceso' ? `<button class="btn-primary" onclick="tomarTarea('${o.k}')">🚀 TOMAR TAREA</button>` : `<small>⏳ Por: ${o.tomada_por}</small>`}
-                    </div>`).join('');
-            }
-        });
-    }
-
-    function tomarTarea(key) {
-        db.ref('ordenes_trabajo/' + key).transaction((current) => {
-            if (current && current.estado === "Pendiente") {
-                current.estado = "En Proceso";
-                current.tomada_por = localStorage.getItem('mf_user');
-                return current;
-            }
-        }, (err, committed) => {
-            if(committed) showToast("Tarea asignada", "success");
-            else showToast("⚠️ Alguien más la tomó", "warning");
-        });
-    }
-
-    function finalizarTarea(k) {
-        db.ref('ordenes_trabajo/' + k).update({ estado: "Completado" });
-        showToast("Tarea terminada ✅", "success");
-    }
-
-    function descargarReporteCompras() {
-        db.ref('pedidos_compras').once('value', s => {
-            const data = s.val(); if(!data) return showToast("No hay datos", "warning");
-            let csv = "ID,Producto,Stock,Fecha\n";
-            Object.values(data).forEach(o => csv += `${o.id_prod},${o.producto},${o.cantidad_sistema},${o.fecha}\n`);
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href = url; a.download = 'compras.csv'; a.click();
-        });
-    }
-    
-    // --- LÓGICA DE ATENCIÓN A CLIENTES ---
-
-const seccionEspera = document.getElementById('seccion-espera');
-const listaEspera = document.getElementById('lista-clientes-espera');
-
-// 1. Escuchar la cola en tiempo real
-db.ref('cola_espera').on('value', (snapshot) => {
-    const data = snapshot.val();
-    listaEspera.innerHTML = ""; // Limpiar lista
-    let hayClientes = false;
-
-    if (data) {
-        Object.keys(data).forEach(id => {
-            const cliente = data[id];
-            
-            // Solo mostrar si están esperando
-            if (cliente.estado === "esperando") {
-                hayClientes = true;
-                const tarjeta = document.createElement('div');
-                tarjeta.className = 'card-item'; // Usando tu clase de estilo actual
-                tarjeta.style.cssText = "display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #ff9800; margin-bottom: 8px; padding: 12px; background: #fff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);";
-                
-                tarjeta.innerHTML = `
-                    <div>
-                        <div style="font-weight: bold; font-size: 1rem;">${cliente.nombre}</div>
-                        <div style="font-size: 0.8rem; color: #888;">Esperando asistencia...</div>
+            return (
+                <div className="min-h-screen flex items-center justify-center bg-blue-600 px-4">
+                    <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8">
+                        <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">Mas Ferre</h1>
+                        <p className="text-center text-blue-600 text-sm font-bold mb-8 uppercase tracking-widest">Excelencia Operativa</p>
+                        <input 
+                            type="text" placeholder="Tu nombre..." 
+                            className="w-full p-3 border rounded-lg mb-4"
+                            onChange={e => setName(e.target.value)}
+                        />
+                        <select 
+                            className="w-full p-3 border rounded-lg mb-6"
+                            onChange={e => setRole(e.target.value)}
+                        >
+                            <option value="asesor">Asesor</option>
+                            <option value="auxiliar">Auxiliar</option>
+                            <option value="inventarista">Inventarista</option>
+                            <option value="jefe">Jefe de Autoservicio</option>
+                            <option value="gerente">Gerencia</option>
+                        </select>
+                        <button 
+                            onClick={() => name && onLogin(name, role)}
+                            className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition"
+                        >ENTRAR</button>
                     </div>
-                    <button onclick="aceptarCliente('${id}')" 
-                            style="background: #0056b3; color: white; border: none; padding: 8px 15px; border-radius: 8px; font-weight: bold; cursor: pointer;">
-                        ATENDER
-                    </button>
-                `;
-                listaEspera.appendChild(tarjeta);
+                </div>
+            );
+        }
+
+        function Header({ user, setMenuOpen, onLogout }) {
+            return (
+                <header className="bg-white shadow-md p-4 flex justify-between items-center sticky top-0 z-40">
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => setMenuOpen(true)} className="p-2 hover:bg-gray-100 rounded-lg">
+                            <svg className="w-8 h-8 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                        </button>
+                        <div>
+                            <h1 className="text-sm font-bold text-blue-800 leading-none">Excelencia Operativa</h1>
+                            <small className="text-gray-500">{user.name} ({user.role})</small>
+                        </div>
+                    </div>
+                    <button onClick={onLogout} className="text-xs font-bold text-red-500 hover:underline">SALIR</button>
+                </header>
+            );
+        }
+
+        function Sidebar({ isOpen, setIsOpen, setSeccion, seccionActual }) {
+            const opciones = ["Asesor", "Auxiliar", "Inventarista", "Jefe de Autoservicio", "Gerencia", "Entregas", "Almacén"];
+            return (
+                <div className={`fixed inset-0 z-[100] flex transition-opacity duration-300 ${isOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
+                    <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setIsOpen(false)}></div>
+                    <div className={`relative bg-white w-72 h-full shadow-2xl transition-transform duration-300 transform ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                        <div className="p-6 border-b bg-blue-50 flex justify-between">
+                            <span className="font-bold text-blue-900">MENÚ</span>
+                            <button onClick={() => setIsOpen(false)} className="text-2xl">&times;</button>
+                        </div>
+                        <nav className="p-4 space-y-2">
+                            {opciones.map(opt => (
+                                <button key={opt} onClick={() => {setSeccion(opt); setIsOpen(false);}} className={`w-full text-left p-3 rounded-xl ${seccionActual === opt ? 'bg-blue-600 text-white' : 'hover:bg-gray-100 text-gray-600'}`}>{opt}</button>
+                            ))}
+                        </nav>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- VISTAS ESPECÍFICAS ---
+
+        function ViewAsesor({ user, showToast }) {
+            const [query, setQuery] = useState("");
+            const [result, setResult] = useState(null);
+
+            const buscar = () => {
+                if(!query) return;
+                db.ref('inventario/' + query).once('value', s => {
+                    if(s.val()) setResult({ id: query, ...s.val() });
+                    else showToast("No encontrado", "error");
+                });
+            };
+
+            const enviarARama = (rama) => {
+                db.ref(rama).push({
+                    id_prod: result.id, producto: result.nombre, cantidad_sistema: result.cantidad,
+                    reportado_por: user.name, estado: "Pendiente", fecha: new Date().toLocaleString()
+                });
+                showToast("Reporte enviado", "success");
+                setResult(null); setQuery("");
+            };
+
+            return (
+                <div className="space-y-4">
+                    <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                        <h4 className="font-bold text-blue-800 mb-2">🔎 Consultar Stock</h4>
+                        <div className="flex gap-2">
+                            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Clave producto..." className="flex-1 p-2 border rounded-lg"/>
+                            <button onClick={buscar} className="bg-blue-600 text-white px-4 rounded-lg">Ir</button>
+                        </div>
+                    </div>
+                    {result && (
+                        <div className="p-4 border-2 border-blue-200 rounded-2xl bg-white animate-bounce-short">
+                            <p className="font-bold">{result.nombre}</p>
+                            <p>Stock: <span className="text-blue-600 font-bold">{result.cantidad}</span></p>
+                            <div className="grid grid-cols-2 gap-2 mt-4">
+                                <button onClick={() => enviarARama('ordenes_trabajo')} className="bg-green-500 text-white p-2 rounded-lg text-sm font-bold">A SURTIDO</button>
+                                <button onClick={() => enviarARama('pedidos_compras')} className="bg-orange-500 text-white p-2 rounded-lg text-sm font-bold">A COMPRAS</button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        function ViewAuxiliar({ user, showToast }) {
+            const [tareas, setTareas] = useState([]);
+            const [enfoque, setEnfoque] = useState(null);
+
+            useEffect(() => {
+                const ref = db.ref('ordenes_trabajo');
+                ref.on('value', s => {
+                    const data = s.val() || {};
+                    const lista = Object.keys(data).map(k => ({k, ...data[k]})).filter(o => o.estado !== "Completado");
+                    const activa = lista.find(o => o.tomada_por === user.name && o.estado === "En Proceso");
+                    setEnfoque(activa || null);
+                    setTareas(lista);
+                });
+                return () => ref.off();
+            }, []);
+
+            const tomarTarea = (key) => {
+                db.ref('ordenes_trabajo/' + key).transaction(c => {
+                    if (c && c.estado === "Pendiente") {
+                        c.estado = "En Proceso"; c.tomada_por = user.name; return c;
+                    }
+                }, (err, committed) => {
+                    if(!committed) showToast("Ya ocupada", "error");
+                });
+            };
+
+            const finalizar = (k) => {
+                db.ref('ordenes_trabajo/' + k).update({ estado: "Completado" });
+                showToast("Terminado ✅", "success");
+            };
+
+            if (enfoque) {
+                return (
+                    <div className="text-center p-8 border-4 border-dashed border-blue-400 rounded-3xl bg-blue-50">
+                        <span className="text-blue-600 font-bold uppercase tracking-widest">Surtiendo:</span>
+                        <h1 className="text-4xl font-black my-4">{enfoque.producto}</h1>
+                        <p className="text-gray-500 mb-8 font-mono">ID: {enfoque.id_prod} | Stock: {enfoque.cantidad_sistema}</p>
+                        <button onClick={() => finalizar(enfoque.k)} className="w-full bg-green-500 text-white p-6 rounded-2xl text-2xl font-black shadow-xl">TERMINAR</button>
+                    </div>
+                );
             }
-        });
-    }
 
-    // Mostrar sección solo si hay gente esperando
-    seccionEspera.style.display = hayClientes ? "block" : "none";
-});
-
-// 2. Función para tomar el turno (Evita duplicados)
-function aceptarCliente(clienteId) {
-    const asesor = localStorage.getItem('mf_user') || "Asesor";
-    const ref = db.ref('cola_espera/' + clienteId);
-
-    // Usamos transacción para que solo uno pueda ganar el turno
-    ref.transaction((currentData) => {
-        if (currentData && currentData.estado === "esperando") {
-            currentData.estado = "atendiendo";
-            currentData.asesor_id = asesor;
-            return currentData;
+            return (
+                <div className="space-y-3">
+                    <h4 className="text-gray-400 font-bold text-xs uppercase italic">Tareas Disponibles</h4>
+                    {tareas.length === 0 && <p className="text-center py-10 text-gray-400 italic">Todo al día...</p>}
+                    {tareas.map(t => (
+                        <div key={t.k} className={`p-4 rounded-2xl border-l-8 shadow-sm bg-white ${t.estado === 'En Proceso' ? 'border-blue-400' : 'border-orange-400'}`}>
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="font-bold text-lg">{t.producto}</p>
+                                    <small className="text-gray-400">Solicitado por: {t.reportado_por}</small>
+                                </div>
+                                <span className={`text-[10px] px-2 py-1 rounded-full font-bold text-white ${t.estado === 'En Proceso' ? 'bg-blue-400' : 'bg-orange-400'}`}>{t.estado}</span>
+                            </div>
+                            {t.estado === 'Pendiente' && (
+                                <button onClick={() => tomarTarea(t.k)} className="w-full mt-4 bg-gray-800 text-white py-2 rounded-xl font-bold">TOMAR TAREA</button>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            );
         }
-        return; // Abortar si ya no está esperando
-    }, (error, committed) => {
-        if (committed) {
-            showToast("✅ Cliente asignado. Ve a ayudarlo.", "success");
-            // Opcional: Podrías mandar un mensaje a Telegram avisando que ya fue tomado
-        } else {
-            showToast("❌ Alguien más ya tomó este cliente", "error");
+
+        function ViewInventarista({ user, showToast }) {
+            const [showForm, setShowForm] = useState(false);
+            const [form, setForm] = useState({ clave: "", prod: "", stock: "", cliente: "", factura: "", motivo: "", fecha: new Date().toISOString().split('T')[0] });
+            const [loading, setLoading] = useState(false);
+
+            const buscarProd = (val) => {
+                setForm({...form, clave: val});
+                if(val.length > 2) {
+                    db.ref('inventario/' + val).once('value', s => {
+                        const item = s.val();
+                        if(item) setForm(prev => ({...prev, prod: item.nombre, stock: item.cantidad}));
+                    });
+                }
+            };
+
+            const descargarCSV = () => {
+                db.ref('pedidos_compras').once('value', s => {
+                    const data = s.val(); if(!data) return showToast("Sin datos", "warning");
+                    let csv = "ID,Producto,Stock,Fecha\n";
+                    Object.values(data).forEach(o => csv += `${o.id_prod},${o.producto},${o.cantidad_sistema},${o.fecha}\n`);
+                    const blob = new Blob([csv], { type: 'text/csv' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a'); a.href = url; a.download = 'compras.csv'; a.click();
+                });
+            };
+
+            const enviarTelegram = async () => {
+                if(!form.prod) return showToast("No hay producto", "error");
+                setLoading(true);
+                const msj = `📦 *DEVOLUCION*\n\n🔹 *Prod:* ${form.prod}\n🔹 *Cliente:* ${form.cliente}\n🔹 *Motivo:* ${form.motivo}\n\n👤 *Por:* ${user.name}`;
+                try {
+                    await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ chat_id: TG_CHAT_ID, text: msj, parse_mode: 'Markdown' })
+                    });
+                    showToast("Enviado a Telegram", "success");
+                } catch (e) { showToast("Error Telegram", "error"); }
+                setLoading(false);
+            };
+
+            return (
+                <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <button onClick={() => setShowForm(!showForm)} className="bg-white border-2 border-blue-600 p-6 rounded-3xl text-center shadow-lg active:scale-95 transition">
+                            <span className="text-3xl">🔄</span><br/><b className="text-blue-800">Devolución</b>
+                        </button>
+                        <button onClick={descargarCSV} className="bg-white border-2 border-green-600 p-6 rounded-3xl text-center shadow-lg active:scale-95 transition">
+                            <span className="text-3xl">📥</span><br/><b className="text-green-800">CSV Compras</b>
+                        </button>
+                    </div>
+
+                    {showForm && (
+                        <div className="bg-gray-50 p-4 rounded-3xl border border-blue-200 animate-[slideUp_0.4s_ease]">
+                            <h4 className="font-bold text-blue-700 mb-4 uppercase text-center">Registro de Devolución</h4>
+                            <input value={form.clave} onChange={e => buscarProd(e.target.value)} placeholder="Clave..." className="w-full p-3 border rounded-xl mb-2"/>
+                            {form.prod && <div className="p-3 bg-blue-100 rounded-xl mb-2 text-sm"><b>{form.prod}</b> | Stock: {form.stock}</div>}
+                            <input value={form.cliente} onChange={e => setForm({...form, cliente: e.target.value})} placeholder="Cliente..." className="w-full p-3 border rounded-xl mb-2"/>
+                            <input value={form.factura} onChange={e => setForm({...form, factura: e.target.value})} placeholder="Factura..." className="w-full p-3 border rounded-xl mb-2"/>
+                            <textarea value={form.motivo} onChange={e => setForm({...form, motivo: e.target.value})} placeholder="Motivo..." className="w-full p-3 border rounded-xl mb-4"></textarea>
+                            <button disabled={loading} onClick={enviarTelegram} className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black shadow-lg">
+                                {loading ? "ENVIANDO..." : "✈️ ENVIAR A TELEGRAM"}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            );
         }
-    });
-}
 
+        function ColaEspera({ showToast, currentUser }) {
+            const [cola, setCola] = useState([]);
 
-    verificarSesion();
-</script>
+            useEffect(() => {
+                const ref = db.ref('cola_espera');
+                ref.on('value', s => {
+                    const data = s.val() || {};
+                    const esperando = Object.keys(data).map(k => ({k, ...data[k]})).filter(c => c.estado === "esperando");
+                    setCola(esperando);
+                });
+                return () => ref.off();
+            }, []);
+
+            const atender = (id) => {
+                db.ref('cola_espera/' + id).transaction(c => {
+                    if (c && c.estado === "esperando") {
+                        c.estado = "atendiendo"; c.asesor_id = currentUser; return c;
+                    }
+                }, (err, comm) => {
+                    if(comm) showToast("Cliente asignado", "success");
+                });
+            };
+
+            if(cola.length === 0) return null;
+
+            return (
+                <div className="bg-orange-50 border-2 border-orange-200 p-4 rounded-3xl mb-6 shadow-sm">
+                    <h3 className="text-orange-700 font-black text-sm uppercase mb-3 flex items-center gap-2">
+                        <span className="animate-ping w-2 h-2 rounded-full bg-orange-500"></span>
+                        Clientes en Espera
+                    </h3>
+                    <div className="space-y-2">
+                        {cola.map(c => (
+                            <div key={c.k} className="bg-white p-3 rounded-2xl flex justify-between items-center shadow-sm border border-orange-100">
+                                <span className="font-bold text-gray-700">{c.nombre}</span>
+                                <button onClick={() => atender(c.k)} className="bg-orange-500 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md">ATENDER</button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        function Toasts({ container }) {
+            return (
+                <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-xs space-y-2">
+                    {container.map(t => (
+                        <div key={t.id} className={`p-4 rounded-2xl text-white text-center font-bold shadow-2xl animate-[slideUp_0.3s_ease] ${t.type === 'error' ? 'bg-red-500' : t.type === 'success' ? 'bg-green-500' : 'bg-gray-800'}`}>
+                            {t.msg}
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+
+    <style>
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .animate-bounce-short { animation: bounce 1s ease-in-out 1; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+    </style>
 </body>
 </html>
