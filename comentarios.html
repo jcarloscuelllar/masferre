@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Muro de Comentarios - React</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-4 md:p-10">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        function App() {
+            const [comentarios, setComentarios] = useState([
+                { id: 1, usuario: "Satoshi", texto: "¡Esto se ve genial!", fecha: "Hace 2 min" },
+                { id: 2, usuario: "Ada Lovelace", texto: "React funcionando en un solo HTML, ¡increíble!", fecha: "Hace 10 min" }
+            ]);
+            const [nuevoComentario, setNuevoComentario] = useState("");
+
+            const manejarEnvio = (e) => {
+                e.preventDefault();
+                if (!nuevoComentario.trim()) return;
+
+                const nuevoObj = {
+                    id: Date.now(),
+                    usuario: "Usuario Invitado",
+                    texto: nuevoComentario,
+                    fecha: "Justo ahora"
+                };
+
+                setComentarios([nuevoObj, ...comentarios]);
+                setNuevoComentario("");
+            };
+
+            return (
+                <div class="max-w-xl mx-auto bg-white rounded-lg shadow-md overflow-hidden">
+                    <div class="p-4 border-b">
+                        <h2 class="text-xl font-bold text-blue-600">Comentarios</h2>
+                    </div>
+
+                    {/* Formulario de entrada */}
+                    <form onSubmit={manejarEnvio} class="p-4 border-b bg-gray-50">
+                        <textarea 
+                            class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Escribe un comentario..."
+                            rows="3"
+                            value={nuevoComentario}
+                            onChange={(e) => setNuevoComentario(e.target.value)}
+                        ></textarea>
+                        <button class="mt-2 bg-blue-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-700 transition">
+                            Publicar
+                        </button>
+                    </form>
+
+                    {/* Lista de comentarios */}
+                    <div class="divide-y">
+                        {comentarios.map(c => (
+                            <div key={c.id} class="p-4 flex gap-3">
+                                <div class="w-10 h-10 bg-gray-300 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-gray-600">
+                                    {c.usuario[0]}
+                                </div>
+                                <div>
+                                    <div class="bg-gray-100 p-3 rounded-2xl">
+                                        <p class="font-bold text-sm">{c.usuario}</p>
+                                        <p class="text-gray-800">{c.texto}</p>
+                                    </div>
+                                    <div class="flex gap-4 mt-1 ml-2 text-xs font-semibold text-gray-500">
+                                        <button class="hover:underline">Me gusta</button>
+                                        <button class="hover:underline">Responder</button>
+                                        <span>{c.fecha}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
