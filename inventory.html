@@ -1,110 +1,190 @@
-// --- COMPONENTE DE TARJETA DE PRODUCTO ESTILO PROFESIONAL ---
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MasFerre - Excelencia Operativa</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+</head>
+<body class="bg-gray-100">
+    <div id="root"></div>
 
-function DetalleProductoFerre({ producto, showToast }) {
-    if (!producto) return null;
+    <script type="text/babel">
+        const { useState, useEffect } = React;
 
-    return (
-        <div className="space-y-4 animate-[slideUp_0.3s_ease]">
-            
-            {/* 1. Header del Producto: Nombre, SKU y Precio */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                <div className="flex justify-between items-start">
-                    <div>
-                        <h2 className="text-xl font-bold text-gray-800 uppercase tracking-tight">{producto.nombre}</h2>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2 text-[11px] text-gray-500 font-medium">
-                            <p>UPC: <span className="text-gray-800">480001610106</span></p>
-                            <p>DEPT: <span className="text-gray-800">92 - FERRETERÍA</span></p>
-                            <p>ITEM: <span className="text-gray-800">{producto.id}</span></p>
-                            <p>COLOR: <span className="text-gray-800 font-bold text-red-600">RED</span></p>
+        // Configuración Firebase
+        const firebaseConfig = { databaseURL: "https://mas-ferre-inventario-default-rtdb.firebaseio.com" };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // --- COMPONENTE DE FICHA TÉCNICA (EL DISEÑO QUE BUSCAS) ---
+        const DetalleProductoFerre = ({ producto }) => {
+            if (!producto) return null;
+            return (
+                <div className="space-y-4 animate-[fadeIn_0.3s_ease-out] pb-24">
+                    {/* Header Producto */}
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-800 uppercase leading-tight">{producto.nombre}</h2>
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2 text-[10px] text-gray-500 font-bold uppercase">
+                                    <p>UPC: <span className="text-gray-900 font-normal">480001610106</span></p>
+                                    <p>DEPT: <span className="text-gray-900 font-normal">92</span></p>
+                                    <p>ITEM: <span className="text-gray-900 font-normal">{producto.id}</span></p>
+                                    <p>COLOR: <span className="text-red-600 font-normal">RED</span></p>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-2xl font-light text-gray-800">$2.37</p>
+                                <span className="text-blue-500 text-xs">ⓘ</span>
+                            </div>
                         </div>
                     </div>
-                    <div className="text-right">
-                        <p className="text-2xl font-light text-gray-800">$2.37</p>
-                        <span className="text-blue-500 text-xs font-bold">ⓘ</span>
-                    </div>
-                </div>
-            </div>
 
-            {/* 2. Sección de Inventario (Círculos de estado) */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-3 bg-gray-50 border-b text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                    Inventario
-                </div>
-                <div className="p-6 flex justify-around items-center text-center">
-                    <div>
-                        <p className="text-3xl font-medium text-gray-700">36</p>
-                        <p className="text-[10px] text-gray-400 uppercase font-bold">Bin</p>
-                    </div>
-                    
-                    {/* Círculo Central Enfatizado */}
-                    <div className="relative">
-                        <div className="w-24 h-24 border-4 border-orange-400 rounded-full flex flex-col items-center justify-center">
-                            <span className="text-3xl font-black text-gray-800">{producto.cantidad}</span>
-                            <span className="text-[9px] text-gray-400 font-bold uppercase">On Hand</span>
+                    {/* Inventario */}
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div className="p-2 bg-gray-50 border-b text-[9px] font-bold text-gray-400 uppercase tracking-widest px-4">Inventario</div>
+                        <div className="p-6 flex justify-around items-center">
+                            <div className="text-center">
+                                <p className="text-3xl font-medium text-gray-700">36</p>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase">Bin</p>
+                            </div>
+                            <div className="relative">
+                                <div className="w-24 h-24 border-[3px] border-orange-400 rounded-full flex flex-col items-center justify-center">
+                                    <span className="text-3xl font-black text-gray-800">{producto.cantidad}</span>
+                                    <span className="text-[8px] text-gray-400 font-bold uppercase">On Hand</span>
+                                </div>
+                            </div>
+                            <div className="text-center">
+                                <p className="text-3xl font-medium text-gray-300">-1</p>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase">Floor</p>
+                            </div>
+                        </div>
+                        <div className="flex border-t divide-x text-[11px] text-gray-500">
+                            <div className="flex-1 p-3 text-center">📦 Case Pack 18</div>
+                            <div className="flex-1 p-3 text-center text-blue-600 font-bold">🟦 SHELF CAP 18</div>
+                        </div>
+                        <div className="flex justify-between p-3 bg-blue-50 border-t text-xs font-bold text-blue-600 px-6">
+                            <button>✏️ Edit</button>
+                            <button>🔗 Cross Ref</button>
                         </div>
                     </div>
 
-                    <div>
-                        <p className="text-3xl font-medium text-gray-400">-1</p>
-                        <p className="text-[10px] text-gray-400 uppercase font-bold">Sales Floor</p>
+                    {/* Replenishment */}
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div className="p-2 bg-gray-50 border-b text-[9px] font-bold text-gray-400 uppercase tracking-widest px-4">Replenishment</div>
+                        <div className="grid grid-cols-2 divide-x p-6 text-center">
+                            <div>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase">In Transit</p>
+                                <p className="text-2xl font-medium text-gray-700">0</p>
+                                <p className="text-[9px] text-orange-500 font-bold mt-1 leading-tight">Est. Arrival<br/>N/A</p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase">Next Arrival</p>
+                                <p className="text-2xl font-medium text-gray-700">18</p>
+                                <p className="text-[9px] text-orange-500 font-bold mt-1 leading-tight">Est. Arrival<br/>2024-06-03</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                
-                {/* Info extra de empaque */}
-                <div className="flex border-t divide-x">
-                    <div className="flex-1 p-3 text-center text-xs text-gray-500 flex items-center justify-center gap-2">
-                        <span className="opacity-50">📦</span> Case Pack 18
-                    </div>
-                    <div className="flex-1 p-3 text-center text-xs text-blue-600 font-bold flex items-center justify-center gap-2">
-                        <span className="text-blue-400">🟦</span> SHELF CAP 18
-                    </div>
-                </div>
+            );
+        };
 
-                <div className="flex justify-between p-3 bg-blue-50 border-t">
-                    <button className="text-blue-600 text-xs font-bold flex items-center gap-1">
-                        ✏️ Edit
+        function App() {
+            const [isLoggedIn, setIsLoggedIn] = useState(false);
+            const [seccion, setSeccion] = useState("Asesor");
+            const [menuOpen, setMenuOpen] = useState(false);
+            const [busqueda, setBusqueda] = useState("");
+            const [productoEncontrado, setProductoEncontrado] = useState(null);
+
+            const handleBuscar = () => {
+                if(!busqueda) return;
+                db.ref('inventario/' + busqueda).once('value', s => {
+                    if(s.val()) setProductoEncontrado({ id: busqueda, ...s.val() });
+                    else alert("No encontrado");
+                });
+            };
+
+            if (!isLoggedIn) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center bg-blue-600 p-6">
+                        <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-sm">
+                            <h1 className="text-2xl font-black text-center mb-6">MasFerre</h1>
+                            <input type="text" placeholder="Usuario" className="w-full p-3 border rounded-lg mb-4" />
+                            <input type="password" placeholder="Contraseña" className="w-full p-3 border rounded-lg mb-6" />
+                            <button onClick={() => setIsLoggedIn(true)} className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold">ENTRAR</button>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen flex flex-col">
+                    {/* Header Corregido */}
+                    <header className="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-50">
+                        <div className="flex items-center gap-3">
+                            <button onClick={() => setMenuOpen(true)} className="p-2 hover:bg-gray-100 rounded-lg">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                            </button>
+                            <h1 className="font-bold text-blue-800">Item Info</h1>
+                        </div>
+                        <div className="flex gap-4">
+                            <button className="text-blue-600">🔍</button>
+                            <button onClick={() => setIsLoggedIn(false)} className="text-red-500 text-xs font-bold">SALIR</button>
+                        </div>
+                    </header>
+
+                    {/* Sidebar */}
+                    {menuOpen && (
+                        <div className="fixed inset-0 z-[100] flex">
+                            <div className="fixed inset-0 bg-black/50" onClick={() => setMenuOpen(false)}></div>
+                            <div className="relative bg-white w-64 h-full p-6 shadow-xl animate-[slideRight_0.3s_ease]">
+                                <h2 className="text-xs font-bold text-gray-400 mb-6 tracking-widest uppercase">Módulos</h2>
+                                <nav className="space-y-2">
+                                    {["Asesor", "Auxiliar", "Inventarista"].map(m => (
+                                        <button key={m} onClick={() => {setSeccion(m); setMenuOpen(false)}} className={`w-full text-left p-3 rounded-lg ${seccion === m ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-600'}`}>{m}</button>
+                                    ))}
+                                </nav>
+                            </div>
+                        </div>
+                    )}
+
+                    <main className="p-4 max-w-md mx-auto w-full">
+                        {/* Buscador Simple */}
+                        <div className="flex gap-2 mb-6">
+                            <input 
+                                value={busqueda} 
+                                onChange={e => setBusqueda(e.target.value)}
+                                placeholder="Clave de producto..." 
+                                className="flex-1 p-3 border rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                            />
+                            <button onClick={handleBuscar} className="bg-blue-600 text-white px-6 rounded-xl font-bold">IR</button>
+                        </div>
+
+                        {/* Ficha Técnica */}
+                        <DetalleProductoFerre producto={productoEncontrado} />
+                    </main>
+
+                    {/* Botón SCAN Flotante */}
+                    <button className="fixed bottom-6 right-6 bg-orange-400 text-gray-900 px-6 py-3 rounded-full font-black shadow-2xl flex items-center gap-2 active:scale-95 transition">
+                        <span>║▌║</span> SCAN
                     </button>
-                    <button className="text-blue-600 text-xs font-bold flex items-center gap-1">
-                        🔗 Cross Ref
-                    </button>
-                </div>
-            </div>
 
-            {/* 3. Sección de Replenishment (Reabastecimiento) */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-3 bg-gray-50 border-b text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                    Replenishment
+                    <style>{`
+                        @keyframes slideRight { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+                        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+                    `}</style>
                 </div>
-                <div className="grid grid-cols-2 divide-x p-6 text-center">
-                    <div>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">In Transit</p>
-                        <p className="text-2xl font-medium text-gray-700">0</p>
-                        <p className="text-[9px] text-orange-400 font-bold mt-1">Estimated Arrival<br/>N/A</p>
-                    </div>
-                    <div>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Next Arrival</p>
-                        <p className="text-2xl font-medium text-gray-700">18</p>
-                        <p className="text-[9px] text-orange-400 font-bold mt-1">Estimated Arrival<br/>2024-06-03</p>
-                    </div>
-                </div>
-                <div className="flex justify-between p-4 border-t text-[10px] font-bold text-gray-500">
-                    <p>Option <span className="text-gray-800 ml-2">REPLN / CREF</span></p>
-                    <p>Status <span className="text-gray-800 ml-2">AD / ACTIVE</span></p>
-                </div>
-            </div>
+            );
+        }
 
-            {/* 4. Order Info / Mensaje de Permisos */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                <h4 className="text-blue-600 font-bold text-sm mb-2">Order Info</h4>
-                <p className="text-xs text-gray-500 leading-relaxed">
-                    You are not authorized to order for your store based on your job code.
-                </p>
-            </div>
-
-            {/* BOTÓN FLOTANTE "SCAN" */}
-            <button className="fixed bottom-6 right-6 bg-orange-400 text-gray-900 px-6 py-3 rounded-full font-black flex items-center gap-2 shadow-2xl active:scale-95 transition-all">
-                <span className="text-xl">║▌║</span> SCAN
-            </button>
-        </div>
-    );
-}
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
