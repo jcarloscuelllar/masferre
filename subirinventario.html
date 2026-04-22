@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carga Masiva - MasFerre</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+</head>
+<body class="bg-slate-100 min-h-screen flex items-center justify-center p-4">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // --- CONFIGURACIÓN DE TU FIREBASE ---
+        // Reemplaza con tu URL de Realtime Database
+        const firebaseConfig = { 
+            databaseURL: "https://mas-ferre-inventario-default-rtdb.firebaseio.com" 
+        };
+        
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        const CargaInventarioCSV = () => {
+            const [archivo, setArchivo] = useState(null);
+            const [cargando, setCargando] = useState(false);
+            const [mensaje, setMensaje] = useState({ texto: "", tipo: "" });
+
+            const showToast = (msg, type) => {
+                setMensaje({ texto: msg, tipo: type });
+                setTimeout(() => setMensaje({ texto: "", tipo: "" }), 4000);
+            };
+
+            const procesarCSV = (e) => {
+                const file = e.target.files[0];
+                setArchivo(file);
+            };
+
+            const subirAFirebase = () => {
+                if (!archivo) return alert("Por favor, selecciona un archivo primero");
+                
+                setCargando(true);
+                const reader = new FileReader();
+
+                reader.onload = (e) => {
+                    try {
+                        const contenido = e.target.result;
+                        const lineas = contenido.split("\n");
+                        const batch = {};
+
+                        // Recorremos las líneas (saltamos la 0 que es el encabezado)
+                        for (let i = 1; i < lineas.length; i++) {
+                            const columnas = lineas[i].split(",");
+                            
+                            // Validamos que la línea no esté vacía y tenga al menos la clave
+                            if (columnas.length < 2 || !columnas[0]) continue; 
+
+                            const claveProd = columnas[0].trim();
+                            
+                            batch[claveProd] = {
+                                clave: claveProd,
+                                codbar: columnas[1]?.trim() || "00000000",
+                                descripcion: columnas[2]?.trim() || "Sin descripción",
+                                unidad: columnas[3]?.trim() || "PZA",
+                                marca: columnas[4]?.trim() || "GENÉRICO",
+                                existencia: parseInt(columnas[5]) || 0,
+                                ultima_actualizacion: new Date().toLocaleString()
+                            };
+                        }
+
+                        // Actualización masiva en la rama 'stock'
+                        db.ref('stock').update(batch)
+                            .then(() => {
+                                showToast("✅ Base de datos 'stock' actualizada con éxito", "success");
+                                setCargando(false);
+                                setArchivo(null);
+                                document.getElementById('csv-input').value = ""; // Limpiar input
+                            })
+                            .catch((err) => {
+                                console.error(err);
+                                showToast("❌ Error al subir a Firebase", "error");
+                                setCargando(false);
+                            });
+                    } catch (error) {
+                        showToast("❌ Error procesando el archivo CSV", "error");
+                        setCargando(false);
+                    }
+                };
+
+                reader.readAsText(archivo);
+            };
+
+            return (
+                <div className="max-w-md w-full">
+                    {/* Alerta de Mensaje */}
+                    {mensaje.texto && (
+                        <div className={`mb-4 p-4 rounded-xl text-white font-bold text-center animate-bounce shadow-lg ${mensaje.tipo === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
+                            {mensaje.texto}
+                        </div>
+                    )}
+
+                    <div className="bg-white p-8 rounded-[2rem] shadow-2xl border border-gray-100">
+                        <header className="text-center mb-8">
+                            <h1 className="text-2xl font-black text-slate-800 tracking-tighter uppercase italic">
+                                MasFerre <span className="text-blue-600 underline">Stock</span>
+                            </h1>
+                            <p className="text-gray-400 text-xs font-bold mt-1 uppercase tracking-widest">Módulo de Carga Masiva</p>
+                        </header>
+
+                        <div className="space-y-6">
+                            <div className="border-4 border-dashed border-slate-100 rounded-[1.5rem] p-10 text-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative">
+                                <input 
+                                    id="csv-input"
+                                    type="file" 
+                                    accept=".csv" 
+                                    onChange={procesarCSV} 
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                />
+                                <div className="space-y-2">
+                                    <span className="text-4xl block">📄</span>
+                                    <p className="text-sm font-bold text-slate-600">
+                                        {archivo ? archivo.name : "Seleccionar archivo CSV"}
+                                    </p>
+                                    <p className="text-[10px] text-slate-400 font-medium uppercase">
+                                        Arrastra o haz clic aquí
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                                <p className="text-[9px] font-black text-blue-400 uppercase mb-2 tracking-widest text-center">Formato de Columnas</p>
+                                <p className="text-[11px] text-blue-700 font-mono text-center leading-relaxed">
+                                    clave, codbar, descripcion, unidad, marca, existencia
+                                </p>
+                            </div>
+
+                            <button 
+                                onClick={subirAFirebase}
+                                disabled={cargando || !archivo}
+                                className={`w-full py-5 rounded-2xl font-black text-sm tracking-widest shadow-[0_10px_20px_rgba(0,0,0,0.1)] transition-all transform active:scale-95 ${
+                                    cargando || !archivo 
+                                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
+                                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                                }`}
+                            >
+                                {cargando ? "⚡ PROCESANDO..." : "🚀 ACTUALIZAR TODO EL STOCK"}
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <p className="text-center mt-6 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                        Excelencia Operativa MasFerre &copy; 2024
+                    </p>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<CargaInventarioCSV />);
+    </script>
+</body>
+</html>
