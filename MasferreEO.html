@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excelencia Operativa MasFerre</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-gray-50 font-sans">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        function App() {
+            const [isLoggedIn, setIsLoggedIn] = useState(false);
+            const [menuOpen, setMenuOpen] = useState(false);
+            const [seccionActual, setSeccionActual] = useState("Inicio");
+            const [user, setUser] = useState({ username: "", password: "" });
+
+            const opcionesMenu = [
+                "Asesor", "Auxiliar", "Inventarista", 
+                "Jefe de Autoservicio", "Gerencia", "Entregas", "Almacén"
+            ];
+
+            const manejarLogin = (e) => {
+                e.preventDefault();
+                // Aquí podrías validar credenciales reales. Por ahora entra directo.
+                if(user.username && user.password) {
+                    setIsLoggedIn(true);
+                } else {
+                    alert("Por favor ingresa usuario y contraseña");
+                }
+            };
+
+            // Componente de Login
+            if (!isLoggedIn) {
+                return (
+                    <div class="min-h-screen flex items-center justify-center bg-blue-600 px-4">
+                        <div class="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8">
+                            <div class="text-center mb-8">
+                                <h1 class="text-3xl font-extrabold text-gray-800">MasFerre</h1>
+                                <p class="text-blue-600 font-semibold uppercase tracking-widest text-sm">Excelencia Operativa</p>
+                            </div>
+                            <form onSubmit={manejarLogin} class="space-y-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Usuario</label>
+                                    <input 
+                                        type="text" 
+                                        required
+                                        class="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                                        onChange={(e) => setUser({...user, username: e.target.value})}
+                                    />
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Contraseña</label>
+                                    <input 
+                                        type="password" 
+                                        required
+                                        class="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                                        onChange={(e) => setUser({...user, password: e.target.value})}
+                                    />
+                                </div>
+                                <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition duration-300 shadow-lg">
+                                    ENTRAR
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Componente de la Plataforma Principal
+            return (
+                <div class="min-h-screen flex flex-col">
+                    {/* Header con Botón Hamburguesa */}
+                    <header class="bg-white shadow-md p-4 flex justify-between items-center sticky top-0 z-50">
+                        <div class="flex items-center gap-4">
+                            <button 
+                                onClick={() => setMenuOpen(!menuOpen)}
+                                class="p-2 hover:bg-gray-100 rounded-lg transition"
+                            >
+                                <svg class="w-8 h-8 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                                </svg>
+                            </button>
+                            <h1 class="text-xl font-bold text-blue-800">Excelencia Operativa MasFerre</h1>
+                        </div>
+                        <button onClick={() => setIsLoggedIn(false)} class="text-sm font-semibold text-red-500 hover:underline">
+                            Cerrar Sesión
+                        </button>
+                    </header>
+
+                    {/* Menú Lateral (Overlay) */}
+                    {menuOpen && (
+                        <div class="fixed inset-0 z-40 flex">
+                            <div class="bg-gray-900 bg-opacity-50 w-full" onClick={() => setMenuOpen(false)}></div>
+                            <div class="bg-white w-64 min-h-screen shadow-2xl absolute left-0 p-6 flex flex-col animate-[slideIn_0.3s_ease-out]">
+                                <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">Navegación</h2>
+                                <nav class="space-y-2">
+                                    {opcionesMenu.map(opcion => (
+                                        <button 
+                                            key={opcion}
+                                            onClick={() => { setSeccionActual(opcion); setMenuOpen(false); }}
+                                            class={`w-full text-left px-4 py-3 rounded-xl transition font-medium ${seccionActual === opcion ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100 text-gray-600'}`}
+                                        >
+                                            {opcion}
+                                        </button>
+                                    ))}
+                                </nav>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Contenido Principal */}
+                    <main class="flex-grow p-6 md:p-12 max-w-5xl mx-auto w-full">
+                        <div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+                            <span class="text-blue-600 font-bold text-sm uppercase">Módulo Seleccionado</span>
+                            <h2 class="text-4xl font-black text-gray-800 mt-2 mb-6">{seccionActual}</h2>
+                            
+                            <div class="prose max-w-none text-gray-600">
+                                <p class="text-lg">Bienvenido a la sección de <strong>{seccionActual}</strong>.</p>
+                                <hr class="my-6 border-gray-100" />
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="p-6 border rounded-2xl bg-blue-50 border-blue-100">
+                                        <h3 class="font-bold text-blue-800 mb-2">Tareas Pendientes</h3>
+                                        <p class="text-sm">Aquí se listarán las actividades de control para esta área.</p>
+                                    </div>
+                                    <div class="p-6 border rounded-2xl bg-green-50 border-green-100">
+                                        <h3 class="font-bold text-green-800 mb-2">Reportes del Día</h3>
+                                        <p class="text-sm">Visualiza el avance operativo en tiempo real.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+
+                    <style>{`
+                        @keyframes slideIn {
+                            from { transform: translateX(-100%); }
+                            to { transform: translateX(0); }
+                        }
+                    `}</style>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
