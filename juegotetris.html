@@ -2,38 +2,44 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tetris Pro - Senior Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tetris Pro Mobile</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
-            background: radial-gradient(circle at center, #1a1a2e 0%, #0f0c29 100%);
-            overflow: hidden;
+            background: #050505;
             color: white;
+            font-family: system-ui, -apple-system, sans-serif;
+            touch-action: manipulation; /* Evita el zoom al tocar rápido */
         }
-        .grid-cell {
-            width: 30px;
-            height: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.03);
-            transition: all 0.15s ease;
-        }
+        .grid-cell { width: 100%; aspect-ratio: 1/1; border: 1px solid rgba(255, 255, 255, 0.05); }
         .ghost { opacity: 0.2; }
-        .active { box-shadow: inset 0 0 8px rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.2); }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
-        .game-over { animation: pulse 1s infinite; }
+        .active { box-shadow: inset 0 0 8px rgba(255,255,255,0.4); }
+        /* Estilo para los botones táctiles */
+        .control-btn {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            touch-action: none;
+        }
+        .control-btn:active { background: rgba(255, 255, 255, 0.3); transform: scale(0.95); }
     </style>
 </head>
-<body class="flex items-center justify-center h-screen">
+<body class="flex items-center justify-center min-h-screen">
 
-    <div id="root"></div>
+    <div id="root" class="w-full max-w-md px-4"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useCallback, useRef } = React;
 
-        // --- CONSTANTES ---
         const COLS = 10;
         const ROWS = 20;
         const TETROMINOS = {
@@ -52,20 +58,12 @@
             return { ...TETROMINOS[type], type };
         };
 
-        const createEmptyGrid = () => Array.from(Array(ROWS), () => Array(COLS).fill([0, 'clear']));
-
-        // --- COMPONENTE ---
         function Tetris() {
-            const [grid, setGrid] = useState(createEmptyGrid());
+            const [grid, setGrid] = useState(Array.from(Array(ROWS), () => Array(COLS).fill([0, 'clear'])));
             const [piece, setPiece] = useState(randomPiece());
             const [pos, setPos] = useState({ x: 3, y: 0 });
             const [score, setScore] = useState(0);
             const [gameOver, setGameOver] = useState(false);
-            const [dropTime, setDropTime] = useState(800);
-
-            // Ref para el loop del juego
-            const requestRef = useRef();
-            const lastTimeRef = useRef();
 
             const checkCollision = useCallback((nextPos, shape = piece.shape) => {
                 for (let y = 0; y < shape.length; y++) {
@@ -82,148 +80,105 @@
                 return false;
             }, [piece, grid]);
 
-            const rotate = (m) => m[0].map((_, i) => m.map(row => row[i]).reverse());
-
-            const handleRotate = () => {
-                const rotated = rotate(piece.shape);
-                if (!checkCollision(pos, rotated)) setPiece(prev => ({ ...prev, shape: rotated }));
-            };
-
-            const lockPiece = useCallback(() => {
-                const newGrid = grid.map(row => [...row]);
-                piece.shape.forEach((row, y) => {
-                    row.forEach((value, x) => {
-                        if (value !== 0) newGrid[y + pos.y][x + pos.x] = [piece.type, 'merged'];
-                    });
-                });
-
-                // Limpiar líneas
-                let rowsCleared = 0;
-                const filteredGrid = newGrid.reduce((acc, row) => {
-                    if (row.every(cell => cell[1] === 'merged')) {
-                        rowsCleared++;
-                        acc.unshift(Array(COLS).fill([0, 'clear']));
-                    } else {
-                        acc.push(row);
-                    }
-                    return acc;
-                }, []);
-
-                if (rowsCleared > 0) setScore(s => s + (rowsCleared * 100));
-                setGrid(filteredGrid);
-                setPos({ x: 3, y: 0 });
-                const next = randomPiece();
-                if (checkCollision({ x: 3, y: 0 }, next.shape)) setGameOver(true);
-                else setPiece(next);
-            }, [grid, piece, pos, checkCollision]);
-
             const move = (dir) => {
                 if (!checkCollision({ x: pos.x + dir, y: pos.y })) setPos(prev => ({ ...prev, x: prev.x + dir }));
+            };
+
+            const rotate = () => {
+                const rotated = piece.shape[0].map((_, i) => piece.shape.map(row => row[i]).reverse());
+                if (!checkCollision(pos, rotated)) setPiece(prev => ({ ...prev, shape: rotated }));
             };
 
             const drop = useCallback(() => {
                 if (!checkCollision({ x: pos.x, y: pos.y + 1 })) {
                     setPos(prev => ({ ...prev, y: prev.y + 1 }));
                 } else {
-                    lockPiece();
-                }
-            }, [pos, checkCollision, lockPiece]);
+                    if (pos.y < 1) return setGameOver(true);
+                    const newGrid = [...grid];
+                    piece.shape.forEach((row, y) => {
+                        row.forEach((value, x) => {
+                            if (value !== 0) newGrid[y + pos.y][x + pos.x] = [piece.type, 'merged'];
+                        });
+                    });
+                    
+                    let linesCleared = 0;
+                    const sweptGrid = newGrid.reduce((acc, row) => {
+                        if (row.every(c => c[1] === 'merged')) {
+                            linesCleared++;
+                            acc.unshift(Array(COLS).fill([0, 'clear']));
+                        } else acc.push(row);
+                        return acc;
+                    }, []);
 
-            // Ghost Piece Calculation
+                    if (linesCleared > 0) setScore(s => s + (linesCleared * 100));
+                    setGrid(sweptGrid);
+                    setPiece(randomPiece());
+                    setPos({ x: 3, y: 0 });
+                }
+            }, [grid, piece, pos, checkCollision]);
+
+            const hardDrop = () => {
+                let finalY = pos.y;
+                while (!checkCollision({ x: pos.x, y: finalY + 1 })) finalY++;
+                setPos(prev => ({ ...prev, y: finalY }));
+            };
+
+            useEffect(() => {
+                if (gameOver) return;
+                const id = setInterval(drop, 800);
+                return () => clearInterval(id);
+            }, [drop, gameOver]);
+
             let ghostY = pos.y;
             while (!checkCollision({ x: pos.x, y: ghostY + 1 })) ghostY++;
 
-            // Game Loop
-            useEffect(() => {
-                const animate = (time) => {
-                    if (lastTimeRef.current !== undefined) {
-                        const deltaTime = time - lastTimeRef.current;
-                        if (deltaTime > dropTime && !gameOver) {
-                            drop();
-                            lastTimeRef.current = time;
-                        }
-                    } else {
-                        lastTimeRef.current = time;
-                    }
-                    requestRef.current = requestAnimationFrame(animate);
-                };
-                requestRef.current = requestAnimationFrame(animate);
-                return () => cancelAnimationFrame(requestRef.current);
-            }, [drop, dropTime, gameOver]);
-
-            // Keyboard
-            useEffect(() => {
-                const handleKeyDown = (e) => {
-                    if (gameOver) return;
-                    if (e.key === 'ArrowLeft') move(-1);
-                    if (e.key === 'ArrowRight') move(1);
-                    if (e.key === 'ArrowDown') drop();
-                    if (e.key === 'ArrowUp') handleRotate();
-                    if (e.key === ' ') { // Hard drop
-                        let finalY = pos.y;
-                        while (!checkCollision({ x: pos.x, y: finalY + 1 })) finalY++;
-                        setPos(prev => ({ ...prev, y: finalY }));
-                    }
-                };
-                window.addEventListener('keydown', handleKeyDown);
-                return () => window.removeEventListener('keydown', handleKeyDown);
-            }, [pos, gameOver, checkCollision]);
-
             return (
-                <div className="flex flex-col md:flex-row gap-10 p-8 bg-black/40 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl">
-                    <div>
-                        <div className="inline-grid grid-cols-10 gap-px bg-white/5 p-1 rounded-sm border border-white/20">
-                            {grid.map((row, y) => row.map((cell, x) => {
-                                let color = cell[0] !== 0 ? TETROMINOS[cell[0]].color : 'transparent';
-                                let classes = "grid-cell ";
-                                
-                                // Render Active Piece
-                                piece.shape.forEach((pRow, py) => {
-                                    pRow.forEach((pVal, px) => {
-                                        if (pVal !== 0) {
-                                            if (py + pos.y === y && px + pos.x === x) {
-                                                color = piece.color;
-                                                classes += "active";
-                                            } else if (py + ghostY === y && px + pos.x === x) {
-                                                color = piece.color;
-                                                classes += "ghost";
-                                            }
-                                        }
-                                    });
-                                });
-
-                                return <div key={`${x}-${y}`} className={classes} style={{ backgroundColor: color }} />;
-                            }))}
+                <div className="flex flex-col gap-4">
+                    {/* Header Score */}
+                    <div className="flex justify-between items-end px-2">
+                        <h1 className="text-xl font-black italic tracking-tighter">TETRIS<span className="text-cyan-400">PRO</span></h1>
+                        <div className="text-right">
+                            <p className="text-[10px] text-gray-500 uppercase font-bold">Score</p>
+                            <p className="text-2xl font-mono leading-none">{score}</p>
                         </div>
                     </div>
 
-                    <div className="flex flex-col justify-between w-48">
-                        <div>
-                            <h1 className="text-3xl font-black tracking-tighter mb-6 bg-gradient-to-br from-white to-gray-500 bg-clip-text text-transparent">TETRIS PRO</h1>
-                            <div className="bg-white/5 p-4 rounded-xl border border-white/10 mb-4">
-                                <p className="text-xs text-gray-400 uppercase font-bold">Puntuación</p>
-                                <p className="text-2xl font-mono text-cyan-400">{score}</p>
+                    {/* Tablero */}
+                    <div className="relative aspect-[1/2] w-full max-w-[300px] mx-auto border-2 border-white/10 bg-white/5 grid grid-cols-10 gap-px p-px rounded-lg overflow-hidden">
+                        {grid.map((row, y) => row.map((cell, x) => {
+                            let color = cell[0] !== 0 ? TETROMINOS[cell[0]].color : 'transparent';
+                            let classes = "grid-cell ";
+                            piece.shape.forEach((pRow, py) => {
+                                pRow.forEach((pVal, px) => {
+                                    if (pVal !== 0) {
+                                        if (py + pos.y === y && px + pos.x === x) { color = piece.color; classes += "active"; }
+                                        else if (py + ghostY === y && px + pos.x === x) { color = piece.color; classes += "ghost"; }
+                                    }
+                                });
+                            });
+                            return <div key={`${x}-${y}`} className={classes} style={{ backgroundColor: color }} />;
+                        }))}
+                        {gameOver && (
+                            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center">
+                                <h2 className="text-red-500 font-black text-2xl mb-4">GAME OVER</h2>
+                                <button onClick={() => window.location.reload()} className="px-6 py-2 bg-white text-black font-bold rounded-full text-sm">REINTENTAR</button>
                             </div>
-                            {gameOver && (
-                                <div className="p-4 bg-red-500/20 border border-red-500/50 rounded-xl text-center mb-4">
-                                    <p className="text-red-500 font-bold game-over uppercase text-sm">Fin del Juego</p>
-                                </div>
-                            )}
+                        )}
+                    </div>
+
+                    {/* Controles Táctiles */}
+                    <div className="grid grid-cols-3 gap-2 max-w-[300px] mx-auto w-full mt-2">
+                        <div className="flex flex-col gap-2">
+                             <button className="control-btn h-14 w-full text-xl" onClick={() => move(-1)}>←</button>
                         </div>
-                        
-                        <div className="space-y-4">
-                            <button 
-                                onClick={() => window.location.reload()}
-                                className="w-full py-3 bg-white text-black font-bold rounded-xl hover:bg-cyan-400 transition-colors uppercase text-xs tracking-widest"
-                            >
-                                Reiniciar
-                            </button>
-                            <div className="text-[10px] text-gray-500 leading-tight">
-                                <p>↑ : Rotar</p>
-                                <p>← → : Mover</p>
-                                <p>SPACE : Hard Drop</p>
-                            </div>
+                        <div className="flex flex-col gap-2">
+                             <button className="control-btn h-14 w-full text-xl" onClick={rotate}>↻</button>
+                             <button className="control-btn h-14 w-full text-xl" onClick={drop}>↓</button>
                         </div>
+                        <div className="flex flex-col gap-2">
+                             <button className="control-btn h-14 w-full text-xl" onClick={() => move(1)}>→</button>
+                        </div>
+                        <button className="control-btn col-span-3 h-12 text-xs font-bold tracking-widest uppercase bg-cyan-500/20" onClick={hardDrop}>Hard Drop</button>
                     </div>
                 </div>
             );
