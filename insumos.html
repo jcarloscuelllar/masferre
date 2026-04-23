@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MasFerre - Solicitud de Insumos</title>
+    <title>MasFerre - Gestión de Insumos</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -22,16 +22,16 @@
         const db = firebase.database();
 
         function App() {
-            // Estados de Login (Simulado según lo anterior)
-            const [userName, setUserName] = useState("Empleado Prueba");
-            const [userRol, setUserRol] = useState("Asesor"); // Cambiar a "Gerente" para probar autorizaciones
+            // NOTA: Aquí deberías conectar tu lógica de login previa para obtener estos valores
+            const [userName, setUserName] = useState("Gerente Prueba"); 
+            const [userRol, setUserRol] = useState("Gerente"); 
             
-            // Estados del Formulario
             const [claveBusqueda, setClaveBusqueda] = useState("");
             const [itemsSolicitados, setItemsSolicitados] = useState([]);
             const [solicitudes, setSolicitudes] = useState([]);
-            const [vista, setVista] = useState("formulario"); // formulario o tabla
+            const [vista, setVista] = useState("formulario");
 
+            // Cargar solicitudes de la rama 'solicitudes_insumos'
             useEffect(() => {
                 const ref = db.ref('solicitudes_insumos');
                 ref.on('value', snapshot => {
@@ -39,6 +39,8 @@
                     if (data) {
                         const lista = Object.keys(data).map(id => ({ id, ...data[id] }));
                         setSolicitudes(lista.reverse());
+                    } else {
+                        setSolicitudes([]);
                     }
                 });
                 return () => ref.off();
@@ -46,9 +48,15 @@
 
             const buscarProducto = () => {
                 const claveLimpia = claveBusqueda.trim().replace(/^0+/, '');
+                if(!claveLimpia) return;
+
                 db.ref('stock/' + claveLimpia).once('value', s => {
                     const prod = s.val();
                     if (prod) {
+                        // Evitar duplicados en la misma solicitud
+                        if(itemsSolicitados.some(i => i.clave === prod.clave)) {
+                            return alert("Este producto ya está en la lista");
+                        }
                         const nuevoItem = {
                             clave: prod.clave,
                             descripcion: prod.descripcion,
@@ -59,24 +67,17 @@
                         setItemsSolicitados([...itemsSolicitados, nuevoItem]);
                         setClaveBusqueda("");
                     } else {
-                        alert("Producto no encontrado");
+                        alert("Clave no encontrada en Stock");
                     }
                 });
             };
 
-            const actualizarItem = (index, campo, valor) => {
-                const copia = [...itemsSolicitados];
-                copia[index][campo] = valor;
-                setItemsSolicitados(copia);
-            };
-
-            const eliminarItem = (index) => {
-                setItemsSolicitados(itemsSolicitados.filter((_, i) => i !== index));
-            };
-
             const enviarSolicitud = () => {
                 if (itemsSolicitados.length === 0) return alert("Agrega al menos un producto");
-                
+
+                const BOT_TOKEN = "8706006265:AAETnU9WUcq_sbTAWd6vof9Q1VoLVobORWQ";
+                const CHAT_ID = "-1003928780691"; 
+
                 const nuevaSol = {
                     solicitante: userName,
                     rol: userRol,
@@ -86,154 +87,164 @@
                     timestamp: Date.now()
                 };
 
-                db.ref('solicitudes_insumos').push(nuevaSol)
-                    .then(() => {
-                        alert("Solicitud enviada al grupo de devoluciones");
-                        setItemsSolicitados([]);
-                        setVista("tabla");
+                db.ref('solicitudes_insumos').push(nuevaSol).then((res) => {
+                    // Construir mensaje limpio para Telegram
+                    let texto = `📦 *NUEVA SOLICITUD DE INSUMOS*\n`;
+                    texto += `👤 *De:* ${userName}\n`;
+                    texto += `🆔 *ID:* \`${res.key.slice(-5).toUpperCase()}\`\n`;
+                    texto += `━━━━━━━━━━━━━━━━━━━━\n`;
+
+                    itemsSolicitados.forEach((it, i) => {
+                        texto += `${i+1}. *${it.descripcion}*\n`;
+                        texto += `   Cant: ${it.cantidad} | Para: ${it.beneficiario}\n`;
+                        texto += `   Motivo: ${it.motivo}\n\n`;
                     });
+
+                    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            chat_id: CHAT_ID,
+                            text: texto,
+                            parse_mode: "Markdown"
+                        })
+                    });
+
+                    alert("Solicitud registrada y enviada al grupo.");
+                    setItemsSolicitados([]);
+                    setVista("tabla");
+                });
             };
 
             const gestionarAutorizacion = (id, estado) => {
+                const confirmacion = confirm(`¿Confirmar ${estado === 'ok' ? 'AUTORIZACIÓN' : 'RECHAZO'}?`);
+                if(!confirmacion) return;
+
                 db.ref(`solicitudes_insumos/${id}`).update({
-                    autorizacion: estado === 'ok' ? 'Autorizado' : 'Rechazado'
+                    autorizacion: estado === 'ok' ? 'Autorizado' : 'Rechazado',
+                    autorizadoPor: userName
                 });
             };
 
             return (
                 <div className="min-h-screen pb-10">
-                    {/* Header Estilo MasFerre */}
-                    <header className="bg-white p-4 shadow-md flex justify-between items-center sticky top-0 z-10">
+                    <header className="bg-white p-4 shadow-sm flex justify-between items-center sticky top-0 z-10 border-b border-blue-100">
                         <div>
-                            <h1 className="font-black text-blue-700 italic text-xl">MASFERRE</h1>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Insumos & Suministros</p>
+                            <h1 className="font-black text-blue-800 italic text-xl">MASFERRE</h1>
+                            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Insumos</p>
                         </div>
-                        <div className="flex gap-2">
-                            <button onClick={() => setVista("formulario")} className={`px-4 py-2 rounded-lg text-xs font-bold ${vista === 'formulario' ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>SOLICITAR</button>
-                            <button onClick={() => setVista("tabla")} className={`px-4 py-2 rounded-lg text-xs font-bold ${vista === 'tabla' ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>HISTORIAL</button>
+                        <div className="flex gap-2 bg-gray-100 p-1 rounded-xl">
+                            <button onClick={() => setVista("formulario")} className={`px-4 py-2 rounded-lg text-[10px] font-black transition ${vista === 'formulario' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-400'}`}>NUEVA</button>
+                            <button onClick={() => setVista("tabla")} className={`px-4 py-2 rounded-lg text-[10px] font-black transition ${vista === 'tabla' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-400'}`}>HISTORIAL</button>
                         </div>
                     </header>
 
                     <main className="p-4 max-w-2xl mx-auto">
                         {vista === "formulario" ? (
-                            <div className="space-y-6">
-                                {/* Datos del Solicitante */}
+                            <div className="space-y-4">
                                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                                    <h3 className="text-sm font-black text-gray-800 uppercase mb-4">Datos del Solicitante</h3>
-                                    <div className="flex gap-4">
-                                        <div className="flex-1">
-                                            <label className="text-[10px] font-bold text-gray-400 block mb-1">NOMBRE</label>
-                                            <p className="font-bold text-gray-700">{userName}</p>
-                                        </div>
-                                        <div className="flex-1">
-                                            <label className="text-[10px] font-bold text-gray-400 block mb-1">ROL</label>
-                                            <p className="font-bold text-blue-600">{userRol}</p>
-                                        </div>
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="text-xs font-black text-gray-400 uppercase italic">Solicitante</h3>
+                                        <span className="bg-blue-100 text-blue-700 text-[9px] px-2 py-1 rounded-full font-bold">{userRol}</span>
                                     </div>
+                                    <p className="text-lg font-bold text-gray-800">{userName}</p>
                                 </div>
 
-                                {/* Buscador de Claves */}
-                                <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                                    <h3 className="text-sm font-black text-gray-800 uppercase mb-4">Agregar Productos</h3>
+                                <div className="bg-blue-600 p-6 rounded-3xl shadow-lg shadow-blue-200">
+                                    <h3 className="text-xs font-black text-blue-100 uppercase mb-4">Buscar en Stock</h3>
                                     <div className="flex gap-2">
                                         <input 
                                             value={claveBusqueda}
                                             onChange={(e) => setClaveBusqueda(e.target.value)}
-                                            placeholder="Ingresa clave..." 
-                                            className="flex-1 bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
+                                            onKeyPress={(e) => e.key === 'Enter' && buscarProducto()}
+                                            placeholder="Escribe la clave..." 
+                                            className="flex-1 bg-white/20 text-white placeholder:text-blue-200 p-4 rounded-2xl outline-none border border-white/30 focus:bg-white focus:text-gray-800 transition-all"
                                         />
-                                        <button onClick={buscarProducto} className="bg-orange-400 text-white px-6 rounded-xl font-bold">AGREGAR</button>
+                                        <button onClick={buscarProducto} className="bg-white text-blue-600 px-6 rounded-2xl font-black text-sm active:scale-95 transition">AGREGAR</button>
                                     </div>
                                 </div>
 
-                                {/* Listado de Items */}
                                 {itemsSolicitados.map((item, index) => (
-                                    <div key={index} className="bg-white p-5 rounded-3xl shadow-lg border-l-4 border-orange-400 relative animate-[fadeIn_0.3s]">
-                                        <button onClick={() => eliminarItem(index)} className="absolute top-4 right-4 text-gray-300 hover:text-red-500 font-bold">✕</button>
-                                        <p className="text-[10px] font-black text-orange-500">{item.clave}</p>
-                                        <h4 className="font-bold text-gray-800 uppercase mb-4">{item.descripcion}</h4>
+                                    <div key={index} className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 relative animate-[fadeIn_0.3s]">
+                                        <button onClick={() => {
+                                            setItemsSolicitados(itemsSolicitados.filter((_, i) => i !== index));
+                                        }} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-red-50 text-red-500 rounded-full font-bold">✕</button>
                                         
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="text-[9px] font-bold text-gray-400 block uppercase">Cantidad</label>
-                                                <input 
-                                                    type="number" 
-                                                    value={item.cantidad} 
-                                                    onChange={(e) => actualizarItem(index, 'cantidad', e.target.value)}
-                                                    className="w-full bg-gray-50 p-2 rounded-lg font-bold"
-                                                />
+                                        <p className="text-[10px] font-black text-blue-600 mb-1">{item.clave}</p>
+                                        <h4 className="font-bold text-gray-800 uppercase text-sm mb-4 pr-8 leading-tight">{item.descripcion}</h4>
+                                        
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="col-span-1">
+                                                <label className="text-[9px] font-black text-gray-400 block uppercase mb-1">Cantidad</label>
+                                                <input type="number" value={item.cantidad} onChange={(e) => {
+                                                    const c = [...itemsSolicitados]; c[index].cantidad = e.target.value; setItemsSolicitados(c);
+                                                }} className="w-full bg-gray-50 p-3 rounded-xl font-bold text-blue-600 focus:ring-2 focus:ring-blue-500 outline-none" />
                                             </div>
-                                            <div>
-                                                <label className="text-[9px] font-bold text-gray-400 block uppercase">Beneficiario</label>
-                                                <input 
-                                                    placeholder="¿Para quién?"
-                                                    value={item.beneficiario} 
-                                                    onChange={(e) => actualizarItem(index, 'beneficiario', e.target.value)}
-                                                    className="w-full bg-gray-50 p-2 rounded-lg text-sm"
-                                                />
+                                            <div className="col-span-1">
+                                                <label className="text-[9px] font-black text-gray-400 block uppercase mb-1">Beneficiario</label>
+                                                <input placeholder="Nombre" value={item.beneficiario} onChange={(e) => {
+                                                    const c = [...itemsSolicitados]; c[index].beneficiario = e.target.value; setItemsSolicitados(c);
+                                                }} className="w-full bg-gray-50 p-3 rounded-xl text-xs outline-none" />
                                             </div>
                                             <div className="col-span-2">
-                                                <label className="text-[9px] font-bold text-gray-400 block uppercase">Motivo / Uso</label>
-                                                <input 
-                                                    placeholder="Ej: Mantenimiento de estantería"
-                                                    value={item.motivo} 
-                                                    onChange={(e) => actualizarItem(index, 'motivo', e.target.value)}
-                                                    className="w-full bg-gray-50 p-2 rounded-lg text-sm"
-                                                />
+                                                <label className="text-[9px] font-black text-gray-400 block uppercase mb-1">Motivo de uso</label>
+                                                <input placeholder="¿Para qué se usará?" value={item.motivo} onChange={(e) => {
+                                                    const c = [...itemsSolicitados]; c[index].motivo = e.target.value; setItemsSolicitados(c);
+                                                }} className="w-full bg-gray-50 p-3 rounded-xl text-xs outline-none" />
                                             </div>
                                         </div>
                                     </div>
                                 ))}
 
                                 {itemsSolicitados.length > 0 && (
-                                    <button onClick={enviarSolicitud} className="w-full bg-blue-700 text-white py-5 rounded-3xl font-black shadow-xl active:scale-95 transition">
-                                        ENVIAR SOLICITUD A GERENCIA
+                                    <button onClick={enviarSolicitud} className="w-full bg-blue-800 text-white py-5 rounded-3xl font-black shadow-xl shadow-blue-200 active:scale-95 transition mt-6 uppercase tracking-widest text-sm">
+                                        🚀 Enviar a Telegram y Sistema
                                     </button>
                                 )}
                             </div>
                         ) : (
-                            /* Tabla / Historial de Solicitudes */
                             <div className="space-y-4">
-                                <h2 className="font-black text-gray-800 italic">CONSULTA DE SOLICITUDES</h2>
+                                <div className="flex justify-between items-center mb-2">
+                                    <h2 className="font-black text-gray-800 italic uppercase text-sm tracking-widest">Buscador de Solicitudes</h2>
+                                    <span className="text-[10px] text-gray-400 font-bold">{solicitudes.length} Registros</span>
+                                </div>
+                                
+                                {solicitudes.length === 0 && (
+                                    <div className="text-center py-20 text-gray-400 font-bold italic">No hay solicitudes registradas</div>
+                                )}
+
                                 {solicitudes.map(sol => (
-                                    <div key={sol.id} className={`bg-white rounded-3xl p-5 shadow-sm border-l-8 ${sol.autorizacion === 'Autorizado' ? 'border-green-500' : sol.autorizacion === 'Rechazado' ? 'border-red-500' : 'border-gray-300'}`}>
+                                    <div key={sol.id} className={`bg-white rounded-[2rem] p-6 shadow-sm border-l-[12px] transition-all ${sol.autorizacion === 'Autorizado' ? 'border-green-500 shadow-green-100' : sol.autorizacion === 'Rechazado' ? 'border-red-500 shadow-red-100' : 'border-gray-200'}`}>
                                         <div className="flex justify-between items-start mb-4">
                                             <div>
-                                                <p className="text-[10px] font-bold text-gray-400 uppercase">{sol.fecha}</p>
-                                                <p className="font-bold text-gray-800">{sol.solicitante}</p>
-                                                <p className={`text-[10px] font-black uppercase ${sol.autorizacion === 'Autorizado' ? 'text-green-500' : sol.autorizacion === 'Rechazado' ? 'text-red-500' : 'text-gray-400'}`}>
-                                                    ESTADO: {sol.autorizacion}
-                                                </p>
+                                                <p className="text-[9px] font-black text-gray-400 uppercase mb-1">{sol.fecha}</p>
+                                                <p className="font-black text-gray-800 text-base">{sol.solicitante}</p>
+                                                <div className={`inline-block mt-1 px-3 py-1 rounded-full text-[9px] font-black uppercase ${sol.autorizacion === 'Autorizado' ? 'bg-green-100 text-green-600' : sol.autorizacion === 'Rechazado' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
+                                                    ● {sol.autorizacion}
+                                                </div>
                                             </div>
                                             
-                                            {/* Acciones de Gerencia */}
                                             {(userRol === 'Gerente' || userRol === 'Inventarista') && sol.autorizacion === 'Pendiente' && (
-                                                <div className="flex gap-2">
-                                                    <button onClick={() => gestionarAutorizacion(sol.id, 'ok')} className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-[10px] font-black hover:bg-green-500 hover:text-white transition">OK</button>
-                                                    <button onClick={() => gestionarAutorizacion(sol.id, 'no')} className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-[10px] font-black hover:bg-red-500 hover:text-white transition">NO</button>
+                                                <div className="flex flex-col gap-2">
+                                                    <button onClick={() => gestionarAutorizacion(sol.id, 'ok')} className="bg-green-500 text-white px-5 py-2 rounded-xl text-[10px] font-black shadow-lg shadow-green-200 active:scale-90 transition">AUTORIZAR</button>
+                                                    <button onClick={() => gestionarAutorizacion(sol.id, 'no')} className="bg-red-100 text-red-600 px-5 py-2 rounded-xl text-[10px] font-black active:scale-90 transition">RECHAZAR</button>
                                                 </div>
                                             )}
                                         </div>
 
-                                        <div className="bg-gray-50 rounded-2xl p-4">
-                                            <table className="w-full text-left text-[11px]">
-                                                <thead>
-                                                    <tr className="text-gray-400 font-black uppercase">
-                                                        <th className="pb-2">Clave</th>
-                                                        <th className="pb-2">Cant</th>
-                                                        <th className="pb-2">Beneficiario</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {sol.items.map((it, i) => (
-                                                        <tr key={i} className="border-t border-gray-100">
-                                                            <td className="py-2 font-bold">{it.clave}</td>
-                                                            <td className="py-2">{it.cantidad}</td>
-                                                            <td className="py-2">{it.beneficiario}</td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
+                                        <div className="space-y-2 mt-4 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                            {sol.items.map((it, i) => (
+                                                <div key={i} className="flex justify-between items-center text-[11px] border-b border-gray-200 last:border-0 pb-2 mb-2 last:mb-0 last:pb-0">
+                                                    <div>
+                                                        <span className="font-black text-blue-600 mr-2">{it.clave}</span>
+                                                        <span className="font-bold text-gray-700">{it.descripcion}</span>
+                                                        <p className="text-[9px] text-gray-400 mt-0.5 italic">Para: {it.beneficiario} | {it.motivo}</p>
+                                                    </div>
+                                                    <div className="bg-white px-3 py-1 rounded-lg shadow-sm font-black text-gray-800 border border-gray-200">
+                                                        x{it.cantidad}
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 ))}
@@ -243,6 +254,7 @@
 
                     <style>{`
                         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+                        input[type=number]::-webkit-inner-spin-button { opacity: 1; }
                     `}</style>
                 </div>
             );
