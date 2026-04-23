@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Statics Master - Equilibrium Lab</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+        body { background: #0f172a; font-family: 'JetBrains+Mono', monospace; color: #e2e8f0; }
+        .physics-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
+        input:focus { outline: 2px solid #38bdf8; }
+        canvas { filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.2)); }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div id="root" class="w-full max-w-4xl"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback } = React;
+
+        // --- UTILIDADES FÍSICAS ---
+        const toRad = (deg) => (deg * Math.PI) / 180;
+        
+        const generateChallenge = () => {
+            // Generamos un sistema en equilibrio: T1*cos(a1) = T2*cos(a2)
+            const angle1 = Math.floor(Math.random() * 40) + 20; // 20-60 deg
+            const angle2 = Math.floor(Math.random() * 40) + 20; // 20-60 deg
+            const mass = Math.floor(Math.random() * 20) + 5;    // 5-25 kg
+            const weight = parseFloat((mass * 9.81).toFixed(2));
+
+            // Ecuaciones de equilibrio:
+            // T1*cos(a1) - T2*cos(a2) = 0
+            // T1*sin(a1) + T2*sin(a2) - W = 0
+            // Resolviendo T2 = T1 * cos(a1)/cos(a2)
+            // T1 * (sin(a1) + cos(a1)*tan(a2)) = W
+            const t1 = weight / (Math.sin(toRad(angle1)) + Math.cos(toRad(angle1)) * Math.tan(toRad(angle2)));
+            const t2 = (t1 * Math.cos(toRad(angle1))) / Math.cos(toRad(angle2));
+
+            const questions = [
+                { label: "Tensión 1 (T1) [N]", value: t1, id: "T1" },
+                { label: "Tensión 2 (T2) [N]", value: t2, id: "T2" },
+                { label: "Componente T1x [N]", value: t1 * Math.cos(toRad(angle1)), id: "T1X" },
+                { label: "Componente T2y [N]", value: t2 * Math.sin(toRad(angle2)), id: "T2Y" }
+            ];
+
+            const selected = questions[Math.floor(Math.random() * questions.length)];
+
+            return {
+                angle1, angle2, weight, mass,
+                target: selected,
+                allData: { t1, t2 }
+            };
+        };
+
+        function PhysicsEngine() {
+            const [game, setGame] = useState(generateChallenge());
+            const [userInput, setUserInput] = useState("");
+            const [score, setScore] = useState(0);
+            const [feedback, setFeedback] = useState(null);
+            const canvasRef = useRef(null);
+
+            // --- RENDERIZADO DE DIAGRAMA VECTORES ---
+            const drawSystem = useCallback(() => {
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                const { angle1, angle2 } = game;
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2 - 20;
+
+                // Estilo de líneas
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+
+                // Techo o soporte
+                ctx.strokeStyle = '#475569';
+                ctx.beginPath();
+                ctx.moveTo(centerX - 120, centerY - 80);
+                ctx.lineTo(centerX + 120, centerY - 80);
+                ctx.stroke();
+
+                // Cuerda 1 (Izquierda)
+                ctx.strokeStyle = '#38bdf8';
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                const x1 = centerX - 100 * Math.cos(toRad(angle1));
+                const y1 = centerY - 100 * Math.sin(toRad(angle1));
+                ctx.lineTo(x1, centerY - 80);
+                ctx.stroke();
+                
+                // Cuerda 2 (Derecha)
+                ctx.strokeStyle = '#818cf8';
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                const x2 = centerX + 100 * Math.cos(toRad(angle2));
+                const y2 = centerY - 100 * Math.sin(toRad(angle2));
+                ctx.lineTo(x2, centerY - 80);
+                ctx.stroke();
+
+                // Peso (W)
+                ctx.strokeStyle = '#f43f5e';
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.lineTo(centerX, centerY + 80);
+                ctx.stroke();
+
+                // Etiquetas de ángulos
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = 'bold 14px JetBrains Mono';
+                ctx.fillText(`${angle1}°`, centerX - 40, centerY - 10);
+                ctx.fillText(`${angle2}°`, centerX + 20, centerY - 10);
+                ctx.fillStyle = '#f43f5e';
+                ctx.fillText(`${game.mass} kg`, centerX + 10, centerY + 60);
+                
+                // Nombres Tensiones
+                ctx.fillStyle = '#38bdf8';
+                ctx.fillText("T1", centerX - 60, centerY - 50);
+                ctx.fillStyle = '#818cf8';
+                ctx.fillText("T2", centerX + 50, centerY - 50);
+            }, [game]);
+
+            useEffect(() => {
+                drawSystem();
+            }, [drawSystem]);
+
+            const checkAnswer = (e) => {
+                e.preventDefault();
+                const numericAnswer = parseFloat(userInput);
+                const correctAnswer = game.target.value;
+                
+                // Margen de error del 1% (estándar en ingeniería)
+                const error = Math.abs((numericAnswer - correctAnswer) / correctAnswer);
+
+                if (error < 0.02) {
+                    setScore(s => s + 1);
+                    setFeedback({ type: 'success', text: `¡Correcto! Error: ${(error * 100).toFixed(4)}%` });
+                    setTimeout(() => {
+                        setGame(generateChallenge());
+                        setUserInput("");
+                        setFeedback(null);
+                    }, 1500);
+                } else {
+                    setFeedback({ type: 'error', text: `Incorrecto. Era ${correctAnswer.toFixed(2)}N` });
+                    setScore(0); // Muerte súbita
+                }
+            };
+
+            return (
+                <div className="physics-card rounded-3xl p-8 shadow-2xl overflow-hidden border border-white/5">
+                    <div className="flex flex-col md:flex-row justify-between items-start mb-8 gap-6">
+                        <div className="flex-1">
+                            <h1 className="text-2xl font-black text-white mb-2 tracking-tighter">STATICS LAB <span className="text-sky-400">v1.0</span></h1>
+                            <p className="text-slate-400 text-sm max-w-md leading-relaxed">
+                                Calcula el equilibrio estático del sistema. Considera <span className="text-rose-400 font-bold">g = 9.81 m/s²</span>.
+                                Redondea a 2 decimales si es necesario.
+                            </p>
+                        </div>
+                        <div className="bg-black/40 px-6 py-3 rounded-2xl border border-sky-500/30">
+                            <span className="text-xs block text-sky-400 uppercase font-bold tracking-widest">Aciertos</span>
+                            <span className="text-3xl font-bold text-white">{score}</span>
+                        </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-8 items-center">
+                        <div className="bg-slate-900/50 rounded-2xl p-4 flex justify-center border border-white/5">
+                            <canvas ref={canvasRef} width="400" height="300" className="max-w-full" />
+                        </div>
+
+                        <div className="flex flex-col gap-6">
+                            <div className="space-y-2">
+                                <h2 className="text-slate-400 uppercase text-xs font-black tracking-widest">Reto Actual</h2>
+                                <div className="text-xl text-white font-bold">
+                                    Determina el valor de: <br/>
+                                    <span className="text-sky-400 underline decoration-sky-500/30">{game.target.label}</span>
+                                </div>
+                            </div>
+
+                            <form onSubmit={checkAnswer} className="space-y-4">
+                                <div className="relative">
+                                    <input 
+                                        type="number" 
+                                        step="0.01"
+                                        value={userInput}
+                                        onChange={(e) => setUserInput(e.target.value)}
+                                        placeholder="00.00"
+                                        className="w-full bg-slate-950/50 border border-slate-700 rounded-xl py-4 px-6 text-2xl font-mono text-sky-400 focus:ring-2 focus:ring-sky-500 transition-all placeholder:opacity-20"
+                                        autoFocus
+                                    />
+                                    <span className="absolute right-6 top-5 text-slate-600 font-bold">N</span>
+                                </div>
+                                
+                                <button className="w-full bg-sky-500 hover:bg-sky-400 text-slate-950 font-black py-4 rounded-xl transition-all active:scale-95 shadow-lg shadow-sky-500/20">
+                                    VALIDAR RESULTADO
+                                </button>
+                            </form>
+
+                            {feedback && (
+                                <div className={`p-4 rounded-xl font-bold text-sm text-center animate-bounce ${feedback.type === 'success' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                                    {feedback.text}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    
+                    <div className="mt-8 pt-6 border-t border-white/5 grid grid-cols-2 md:grid-cols-4 gap-4">
+                         <DataChip label="Masa" value={`${game.mass} kg`} />
+                         <DataChip label="Peso" value={`${game.weight} N`} />
+                         <DataChip label="θ₁" value={`${game.angle1}°`} />
+                         <DataChip label="θ₂" value={`${game.angle2}°`} />
+                    </div>
+                </div>
+            );
+        }
+
+        const DataChip = ({label, value}) => (
+            <div className="bg-slate-800/30 p-3 rounded-lg border border-white/5">
+                <span className="block text-[10px] text-slate-500 uppercase font-bold">{label}</span>
+                <span className="text-sm text-slate-200 font-mono">{value}</span>
+            </div>
+        );
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<PhysicsEngine />);
+    </script>
+</body>
+</html>
