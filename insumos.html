@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MasFerre - Solicitud de Insumos</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+</head>
+<body class="bg-slate-50 font-sans">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const firebaseConfig = { databaseURL: "https://mas-ferre-inventario-default-rtdb.firebaseio.com" };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        function App() {
+            // Estados de Login (Simulado según lo anterior)
+            const [userName, setUserName] = useState("Empleado Prueba");
+            const [userRol, setUserRol] = useState("Asesor"); // Cambiar a "Gerente" para probar autorizaciones
+            
+            // Estados del Formulario
+            const [claveBusqueda, setClaveBusqueda] = useState("");
+            const [itemsSolicitados, setItemsSolicitados] = useState([]);
+            const [solicitudes, setSolicitudes] = useState([]);
+            const [vista, setVista] = useState("formulario"); // formulario o tabla
+
+            useEffect(() => {
+                const ref = db.ref('solicitudes_insumos');
+                ref.on('value', snapshot => {
+                    const data = snapshot.val();
+                    if (data) {
+                        const lista = Object.keys(data).map(id => ({ id, ...data[id] }));
+                        setSolicitudes(lista.reverse());
+                    }
+                });
+                return () => ref.off();
+            }, []);
+
+            const buscarProducto = () => {
+                const claveLimpia = claveBusqueda.trim().replace(/^0+/, '');
+                db.ref('stock/' + claveLimpia).once('value', s => {
+                    const prod = s.val();
+                    if (prod) {
+                        const nuevoItem = {
+                            clave: prod.clave,
+                            descripcion: prod.descripcion,
+                            cantidad: 1,
+                            beneficiario: "",
+                            motivo: ""
+                        };
+                        setItemsSolicitados([...itemsSolicitados, nuevoItem]);
+                        setClaveBusqueda("");
+                    } else {
+                        alert("Producto no encontrado");
+                    }
+                });
+            };
+
+            const actualizarItem = (index, campo, valor) => {
+                const copia = [...itemsSolicitados];
+                copia[index][campo] = valor;
+                setItemsSolicitados(copia);
+            };
+
+            const eliminarItem = (index) => {
+                setItemsSolicitados(itemsSolicitados.filter((_, i) => i !== index));
+            };
+
+            const enviarSolicitud = () => {
+                if (itemsSolicitados.length === 0) return alert("Agrega al menos un producto");
+                
+                const nuevaSol = {
+                    solicitante: userName,
+                    rol: userRol,
+                    fecha: new Date().toLocaleString(),
+                    items: itemsSolicitados,
+                    autorizacion: "Pendiente",
+                    timestamp: Date.now()
+                };
+
+                db.ref('solicitudes_insumos').push(nuevaSol)
+                    .then(() => {
+                        alert("Solicitud enviada al grupo de devoluciones");
+                        setItemsSolicitados([]);
+                        setVista("tabla");
+                    });
+            };
+
+            const gestionarAutorizacion = (id, estado) => {
+                db.ref(`solicitudes_insumos/${id}`).update({
+                    autorizacion: estado === 'ok' ? 'Autorizado' : 'Rechazado'
+                });
+            };
+
+            return (
+                <div className="min-h-screen pb-10">
+                    {/* Header Estilo MasFerre */}
+                    <header className="bg-white p-4 shadow-md flex justify-between items-center sticky top-0 z-10">
+                        <div>
+                            <h1 className="font-black text-blue-700 italic text-xl">MASFERRE</h1>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Insumos & Suministros</p>
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={() => setVista("formulario")} className={`px-4 py-2 rounded-lg text-xs font-bold ${vista === 'formulario' ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>SOLICITAR</button>
+                            <button onClick={() => setVista("tabla")} className={`px-4 py-2 rounded-lg text-xs font-bold ${vista === 'tabla' ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>HISTORIAL</button>
+                        </div>
+                    </header>
+
+                    <main className="p-4 max-w-2xl mx-auto">
+                        {vista === "formulario" ? (
+                            <div className="space-y-6">
+                                {/* Datos del Solicitante */}
+                                <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                                    <h3 className="text-sm font-black text-gray-800 uppercase mb-4">Datos del Solicitante</h3>
+                                    <div className="flex gap-4">
+                                        <div className="flex-1">
+                                            <label className="text-[10px] font-bold text-gray-400 block mb-1">NOMBRE</label>
+                                            <p className="font-bold text-gray-700">{userName}</p>
+                                        </div>
+                                        <div className="flex-1">
+                                            <label className="text-[10px] font-bold text-gray-400 block mb-1">ROL</label>
+                                            <p className="font-bold text-blue-600">{userRol}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Buscador de Claves */}
+                                <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                                    <h3 className="text-sm font-black text-gray-800 uppercase mb-4">Agregar Productos</h3>
+                                    <div className="flex gap-2">
+                                        <input 
+                                            value={claveBusqueda}
+                                            onChange={(e) => setClaveBusqueda(e.target.value)}
+                                            placeholder="Ingresa clave..." 
+                                            className="flex-1 bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                        <button onClick={buscarProducto} className="bg-orange-400 text-white px-6 rounded-xl font-bold">AGREGAR</button>
+                                    </div>
+                                </div>
+
+                                {/* Listado de Items */}
+                                {itemsSolicitados.map((item, index) => (
+                                    <div key={index} className="bg-white p-5 rounded-3xl shadow-lg border-l-4 border-orange-400 relative animate-[fadeIn_0.3s]">
+                                        <button onClick={() => eliminarItem(index)} className="absolute top-4 right-4 text-gray-300 hover:text-red-500 font-bold">✕</button>
+                                        <p className="text-[10px] font-black text-orange-500">{item.clave}</p>
+                                        <h4 className="font-bold text-gray-800 uppercase mb-4">{item.descripcion}</h4>
+                                        
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-[9px] font-bold text-gray-400 block uppercase">Cantidad</label>
+                                                <input 
+                                                    type="number" 
+                                                    value={item.cantidad} 
+                                                    onChange={(e) => actualizarItem(index, 'cantidad', e.target.value)}
+                                                    className="w-full bg-gray-50 p-2 rounded-lg font-bold"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[9px] font-bold text-gray-400 block uppercase">Beneficiario</label>
+                                                <input 
+                                                    placeholder="¿Para quién?"
+                                                    value={item.beneficiario} 
+                                                    onChange={(e) => actualizarItem(index, 'beneficiario', e.target.value)}
+                                                    className="w-full bg-gray-50 p-2 rounded-lg text-sm"
+                                                />
+                                            </div>
+                                            <div className="col-span-2">
+                                                <label className="text-[9px] font-bold text-gray-400 block uppercase">Motivo / Uso</label>
+                                                <input 
+                                                    placeholder="Ej: Mantenimiento de estantería"
+                                                    value={item.motivo} 
+                                                    onChange={(e) => actualizarItem(index, 'motivo', e.target.value)}
+                                                    className="w-full bg-gray-50 p-2 rounded-lg text-sm"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {itemsSolicitados.length > 0 && (
+                                    <button onClick={enviarSolicitud} className="w-full bg-blue-700 text-white py-5 rounded-3xl font-black shadow-xl active:scale-95 transition">
+                                        ENVIAR SOLICITUD A GERENCIA
+                                    </button>
+                                )}
+                            </div>
+                        ) : (
+                            /* Tabla / Historial de Solicitudes */
+                            <div className="space-y-4">
+                                <h2 className="font-black text-gray-800 italic">CONSULTA DE SOLICITUDES</h2>
+                                {solicitudes.map(sol => (
+                                    <div key={sol.id} className={`bg-white rounded-3xl p-5 shadow-sm border-l-8 ${sol.autorizacion === 'Autorizado' ? 'border-green-500' : sol.autorizacion === 'Rechazado' ? 'border-red-500' : 'border-gray-300'}`}>
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div>
+                                                <p className="text-[10px] font-bold text-gray-400 uppercase">{sol.fecha}</p>
+                                                <p className="font-bold text-gray-800">{sol.solicitante}</p>
+                                                <p className={`text-[10px] font-black uppercase ${sol.autorizacion === 'Autorizado' ? 'text-green-500' : sol.autorizacion === 'Rechazado' ? 'text-red-500' : 'text-gray-400'}`}>
+                                                    ESTADO: {sol.autorizacion}
+                                                </p>
+                                            </div>
+                                            
+                                            {/* Acciones de Gerencia */}
+                                            {(userRol === 'Gerente' || userRol === 'Inventarista') && sol.autorizacion === 'Pendiente' && (
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => gestionarAutorizacion(sol.id, 'ok')} className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-[10px] font-black hover:bg-green-500 hover:text-white transition">OK</button>
+                                                    <button onClick={() => gestionarAutorizacion(sol.id, 'no')} className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-[10px] font-black hover:bg-red-500 hover:text-white transition">NO</button>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="bg-gray-50 rounded-2xl p-4">
+                                            <table className="w-full text-left text-[11px]">
+                                                <thead>
+                                                    <tr className="text-gray-400 font-black uppercase">
+                                                        <th className="pb-2">Clave</th>
+                                                        <th className="pb-2">Cant</th>
+                                                        <th className="pb-2">Beneficiario</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {sol.items.map((it, i) => (
+                                                        <tr key={i} className="border-t border-gray-100">
+                                                            <td className="py-2 font-bold">{it.clave}</td>
+                                                            <td className="py-2">{it.cantidad}</td>
+                                                            <td className="py-2">{it.beneficiario}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </main>
+
+                    <style>{`
+                        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+                    `}</style>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
