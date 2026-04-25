@@ -129,13 +129,16 @@
 
                         <div className="flex flex-wrap gap-4 justify-center">
                             <button 
-                                onMouseDown={() => setSwitchOn(true)}
-                                onMouseUp={() => setSwitchOn(false)}
-                                onMouseLeave={() => setSwitchOn(false)}
-                                className="bg-gradient-to-b from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 text-white font-black py-4 px-10 rounded-xl shadow-[0_5px_0_rgb(153,27,27)] active:translate-y-1 active:shadow-none transition-all uppercase tracking-widest text-sm"
-                            >
-                                Dar Marcha
-                            </button>
+    onMouseDown={() => setSwitchOn(true)}
+    onMouseUp={() => setSwitchOn(false)}
+    onTouchStart={(e) => { e.preventDefault(); setSwitchOn(true); }}
+    onTouchEnd={(e) => { e.preventDefault(); setSwitchOn(false); }}
+    onMouseLeave={() => setSwitchOn(false)}
+    className={`bg-gradient-to-b from-red-500 to-red-700 text-white font-black py-4 px-10 rounded-xl shadow-[0_5px_0_rgb(153,27,27)] active:translate-y-1 active:shadow-none transition-all uppercase tracking-widest text-sm ${switchOn ? 'scale-95 shadow-none translate-y-1' : ''}`}
+>
+    Dar Marcha
+</button>
+
 
                             <button 
                                 onClick={() => {
