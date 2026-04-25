@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoSim Tech - Simulador de Capacitación</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        @keyframes spin-slow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+            animation: spin-slow 2s linear infinite;
+        }
+        body { background-color: #111827; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- COMPONENTES VISUALES ---
+
+        const Bateria = ({ voltaje, estado }) => (
+            <div className="flex flex-col items-center p-4 bg-gray-800 rounded-lg border-2 border-gray-600 shadow-inner">
+                <span className="text-white text-[10px] mb-2 font-bold tracking-widest">BATERÍA LEAD-ACID</span>
+                <svg width="100" height="80" viewBox="0 0 100 80">
+                    <rect x="5" y="15" width="90" height="60" fill="#2d3436" stroke="#636e72" strokeWidth="2" />
+                    <rect x="20" y="5" width="20" height="10" fill={estado === 'fallo' ? '#ef4444' : '#22c55e'} />
+                    <rect x="60" y="5" width="20" height="10" fill="#7f8c8d" />
+                    <text x="50" y="55" fill="white" textAnchor="middle" fontSize="16" fontWeight="bold">
+                        {voltaje.toFixed(1)}V
+                    </text>
+                </svg>
+                <div className={`mt-3 h-1.5 w-full rounded-full ${voltaje > 11 ? 'bg-green-500' : 'bg-red-600'}`} />
+            </div>
+        );
+
+        const Alternador = ({ girando }) => (
+            <div className="flex flex-col items-center p-4 bg-gray-800 rounded-lg border-2 border-gray-600">
+                <span className="text-white text-[10px] mb-2 font-bold tracking-widest">ALTERNADOR</span>
+                <svg width="80" height="80" viewBox="0 0 80 80" className={girando ? "animate-spin-slow" : ""}>
+                    <circle cx="40" cy="40" r="35" fill="#4b5563" stroke="#9ca3af" strokeWidth="3" strokeDasharray="8,4" />
+                    <circle cx="40" cy="40" r="12" fill="#1f2937" />
+                    <path d="M40 10 L40 25 M70 40 L55 40 M40 70 L40 55 M10 40 L25 40" stroke="white" strokeWidth="2" />
+                </svg>
+                <span className={`text-[9px] mt-2 font-bold ${girando ? "text-blue-400" : "text-gray-500"}`}>
+                    {girando ? "CARGANDO SISTEMA" : "ESTÁTICO"}
+                </span>
+            </div>
+        );
+
+        const MotorMarcha = ({ intentando, bloqueado }) => (
+            <div className="flex flex-col items-center p-4 bg-gray-800 rounded-lg border-2 border-gray-600">
+                <span className="text-white text-[10px] mb-2 font-bold tracking-widest">SOLENOIDE/MARCHA</span>
+                <svg width="100" height="60" viewBox="0 0 100 60">
+                    <rect x="10" y="10" width="60" height="40" rx="4" fill="#374151" />
+                    <rect x="70" y="15" width="20" height="30" fill={intentando ? "#fbbf24" : "#111827"} 
+                          className={intentando && !bloqueado ? "animate-pulse" : ""} />
+                </svg>
+                <span className={`text-[9px] mt-2 font-bold ${intentando && !bloqueado ? "text-yellow-400" : "text-gray-500"}`}>
+                    {intentando ? (bloqueado ? "CLACK - SIN FUERZA" : "GIRANDO...") : "STANDBY"}
+                </span>
+            </div>
+        );
+
+        // --- APP PRINCIPAL ---
+
+        function App() {
+            const [voltaje, setVoltaje] = useState(12.6);
+            const [switchOn, setSwitchOn] = useState(false);
+            const [diagnostico, setDiagnostico] = useState("SISTEMA OPERATIVO. REALICE PRUEBA DE ARRANQUE.");
+            const [bateriaNueva, setBateriaNueva] = useState(false);
+
+            useEffect(() => {
+                if (switchOn) {
+                    if (!bateriaNueva) {
+                        // Simulación de caída de tensión por batería vieja (Alta resistencia interna)
+                        setVoltaje(4.5);
+                        setDiagnostico("FALLO: Caída de tensión crítica detectada (4.5V). El motor de arranque no puede vencer la compresión.");
+                    } else {
+                        // Simulación de arranque exitoso y carga del alternador
+                        setVoltaje(14.4);
+                        setDiagnostico("ÉXITO: Motor encendido. Alternador entregando 14.4V nominales.");
+                    }
+                } else {
+                    setVoltaje(bateriaNueva ? 12.8 : 12.6);
+                    if (!bateriaNueva) setDiagnostico("LISTO: Voltaje de reposo normal. Intente dar marcha.");
+                }
+            }, [switchOn, bateriaNueva]);
+
+            return (
+                <div className="max-w-5xl mx-auto py-12 px-4">
+                    <header className="text-center mb-10">
+                        <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-600 uppercase italic">
+                            AutoSim v1.0
+                        </h1>
+                        <p className="text-gray-400 text-sm mt-2 font-mono">Entorno de Entrenamiento Eléctrico Automotriz</p>
+                    </header>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <Bateria voltaje={voltaje} estado={(switchOn && !bateriaNueva) ? 'fallo' : 'ok'} />
+                        <Alternador girando={voltaje > 13.5} />
+                        <MotorMarcha intentando={switchOn} bloqueado={voltaje < 6} />
+                    </div>
+
+                    <div className="bg-black border-t-4 border-yellow-500 p-6 rounded-b-xl shadow-2xl">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-yellow-500 font-mono font-bold tracking-tighter uppercase">Consola de Diagnóstico</h2>
+                            <div className="flex gap-2">
+                                <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse"></div>
+                                <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                                <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                            </div>
+                        </div>
+                        
+                        <div className="bg-gray-900 p-4 rounded border border-gray-800 mb-6 min-h-[60px]">
+                            <p className="font-mono text-green-400 text-sm">
+                                <span className="text-gray-600">>> </span>{diagnostico}
+                            </p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-4 justify-center">
+                            <button 
+                                onMouseDown={() => setSwitchOn(true)}
+                                onMouseUp={() => setSwitchOn(false)}
+                                onMouseLeave={() => setSwitchOn(false)}
+                                className="bg-gradient-to-b from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 text-white font-black py-4 px-10 rounded-xl shadow-[0_5px_0_rgb(153,27,27)] active:translate-y-1 active:shadow-none transition-all uppercase tracking-widest text-sm"
+                            >
+                                Dar Marcha
+                            </button>
+
+                            <button 
+                                onClick={() => {
+                                    setBateriaNueva(true);
+                                    setDiagnostico("REEMPLAZO: Batería nueva instalada. Bornes limpios.");
+                                }}
+                                className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-4 px-8 rounded-xl transition-colors uppercase text-xs"
+                            >
+                                Reemplazar Batería
+                            </button>
+                            
+                            <button 
+                                onClick={() => window.location.reload()}
+                                className="bg-gray-800 hover:bg-gray-700 text-gray-400 font-bold py-4 px-8 rounded-xl transition-colors uppercase text-xs border border-gray-700"
+                            >
+                                Resetear Escenario
+                            </button>
+                        </div>
+                    </div>
+
+                    <footer className="mt-12 text-center text-gray-600 text-[10px] uppercase tracking-[0.2em]">
+                        Desarrollado para Capacitación Técnica Avanzada - 2026
+                    </footer>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
