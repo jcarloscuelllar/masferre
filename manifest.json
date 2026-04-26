@@ -1,16 +1,25 @@
 {
   "short_name": "Mas Ferre",
   "name": "Mas Ferre Sistema Integral",
+  "description": "Sistema Integral de Gestión para Ferreterías",
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/583/583321.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/583/583321.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
     }
   ],
-  "start_url": "./index.html",
+  "start_url": "index.html",
   "background_color": "#f4f7fa",
   "display": "standalone",
-  "scope": "./",
+  "orientation": "portrait",
+  "scope": "/",
   "theme_color": "#0056b3"
 }
